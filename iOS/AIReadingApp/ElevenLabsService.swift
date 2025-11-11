@@ -3,7 +3,7 @@ import Foundation
 class ElevenLabsService {
     static let shared = ElevenLabsService()
     
-    private let apiKey = "sk_551194fe1fc5de99b6aac494024b05147a82c0b958625315"
+    private let apiKey = "YourAPI"
     private let baseURL = "https://api.elevenlabs.io/v1"
     
     private init() {}
