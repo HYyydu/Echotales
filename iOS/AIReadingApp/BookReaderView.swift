@@ -1,46 +1,20 @@
 import SwiftUI
 import FirebaseFirestore
 
-// MARK: - Book Model
-struct Book: Identifiable, Codable {
-    let id: String
-    let title: String
-    let author: String
-    let age: String
-    let genre: String
-    let coverUrl: String
-    let tags: [String]
-    let textContent: String?
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case title
-        case author
-        case age
-        case genre
-        case coverUrl
-        case tags
-        case textContent
-    }
-}
-
-// MARK: - AgeGroup Model
-struct AgeGroup: Hashable {
-    let key: String
-    let label: String
-}
-
-// MARK: - BookReaderView
+// MARK: - BookReaderView (Enhanced with Cloud Books + Downloads)
 struct BookReaderView: View {
     let voiceId: String?
     
-    @State private var books: [Book] = []
-    @State private var filteredBooks: [Book] = []
-    @State private var selectedAge: String = "all"
+    @State private var cloudBooks: [CloudBookMetadata] = [] // All books (now from cloud catalog)
+    @State private var filteredCloudBooks: [CloudBookMetadata] = [] // Filtered cloud books to display
+    @State private var displayedBooks: [CloudBookMetadata] = [] // Random 6 books when no filters
     @State private var selectedGenre: String = "All"
+    @State private var selectedTag: String = "All" // All, Classic, AI
     @State private var searchQuery: String = ""
     @State private var showFilterSheet: Bool = false
     @State private var loading: Bool = true
+    
+    @StateObject private var cloudService = CloudBookService.shared
     
     // Design tokens
     private let primaryPink = Color(hex: "F9DAD2")
@@ -55,217 +29,388 @@ struct BookReaderView: View {
     private let bgTertiary = Color(hex: "F3F4F6")
     private let tagText = Color(hex: "6B4C41")
     
-    private let ageGroups: [AgeGroup] = [
-        AgeGroup(key: "all", label: "All Ages"),
-        AgeGroup(key: "0-3", label: "0-3 years"),
-        AgeGroup(key: "4-6", label: "4-6 years"),
-        AgeGroup(key: "7-9", label: "7-9 years"),
-        AgeGroup(key: "10-12", label: "10-12 years"),
-        AgeGroup(key: "13+", label: "13+ years")
-    ]
-    
-    private let genres = ["All", "Adventure", "Fantasy", "Fairy Tales", "Animals", "Science", "Mystery", "Friendship", "Family"]
+    private let genres = ["All", "Adventure", "Fantasy", "Fairy Tales", "Animals", "Science", "Mystery", "Friendship", "Family", "Romance", "Gothic"]
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Main Content (status bar removed, shifted up)
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Header Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Discover Books")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(textPrimary)
-                            .padding(.top, 60) // Increased padding to clear Dynamic Island
-                        
-                        // Search Bar + Filter Button
-                        HStack(spacing: 8) {
-                            // Search Bar
-                            HStack(spacing: 8) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(textQuaternary)
-                                
-                                TextField("Search books...", text: $searchQuery)
-                                    .font(.system(size: 14))
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Main Content
+                if loading {
+                    // Loading State
+                    VStack {
+                        Spacer()
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .tint(secondaryPink)
+                        Text("Loading books...")
+                            .font(.system(size: 16))
+                            .foregroundColor(textSecondary)
+                            .padding(.top, 16)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.white)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // Header Section
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Discover Books")
+                                    .font(.system(size: 24, weight: .bold))
                                     .foregroundColor(textPrimary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(bgTertiary)
-                            .cornerRadius(12)
-                            
-                            // Filter Button
-                            Button(action: { showFilterSheet = true }) {
-                                Image(systemName: "slider.horizontal.3")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(hasActiveFilters ? textPrimary : textQuaternary)
-                                    .frame(width: 44, height: 44)
-                                    .background(hasActiveFilters ? primaryPink : Color.white)
+                                    .padding(.top, 20)
+                                
+                                // Search Bar + Filter Button
+                                HStack(spacing: 8) {
+                                    // Search Bar
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "magnifyingglass")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(textQuaternary)
+                                        
+                                        TextField("Search books...", text: $searchQuery)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(textPrimary)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    .background(bgTertiary)
                                     .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(hasActiveFilters ? secondaryPink : borderLight, lineWidth: 2)
-                                    )
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    
-                    // Active Filters
-                    if hasActiveFilters {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                if selectedAge != "all" {
-                                    FilterBadge(text: ageGroups.first(where: { $0.key == selectedAge })?.label ?? selectedAge) {
-                                        selectedAge = "all"
-                                    }
-                                }
-                                if selectedGenre != "All" {
-                                    FilterBadge(text: selectedGenre) {
-                                        selectedGenre = "All"
+                                    
+                                    // Filter Button
+                                    Button(action: { showFilterSheet = true }) {
+                                        Image(systemName: "slider.horizontal.3")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(hasActiveFilters ? textPrimary : textQuaternary)
+                                            .frame(width: 44, height: 44)
+                                            .background(hasActiveFilters ? primaryPink : Color.white)
+                                            .cornerRadius(12)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(hasActiveFilters ? secondaryPink : borderLight, lineWidth: 2)
+                                            )
                                     }
                                 }
                             }
                             .padding(.horizontal, 16)
+                            
+                            // Active Filters
+                            if hasActiveFilters {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        if selectedTag != "All" {
+                                            FilterBadge(text: selectedTag) {
+                                                selectedTag = "All"
+                                            }
+                                        }
+                                        if selectedGenre != "All" {
+                                            FilterBadge(text: selectedGenre) {
+                                                selectedGenre = "All"
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 16)
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            
+                            // Results Count
+                            HStack {
+                                Text("\(filteredCloudBooks.count) \(filteredCloudBooks.count == 1 ? "book" : "books") found")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(textSecondary)
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            
+                            // Books Grid or Empty State
+                            if filteredCloudBooks.isEmpty {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "books.vertical")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(textQuaternary)
+                                        .padding(.top, 60)
+                                    Text("No books found")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(textSecondary)
+                                    Text("Try adjusting your filters or search")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(textTertiary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 40)
+                            } else {
+                                VStack(spacing: 16) {
+                                    LazyVGrid(columns: [
+                                        GridItem(.flexible(), spacing: 12, alignment: .top),
+                                        GridItem(.flexible(), spacing: 12, alignment: .top),
+                                        GridItem(.flexible(), spacing: 12, alignment: .top)
+                                    ], alignment: .leading, spacing: 12) {
+                                        ForEach(filteredCloudBooks) { cloudBook in
+                                            NavigationLink(destination: CloudBookDetailsLoader(
+                                                cloudBook: cloudBook,
+                                                voiceId: voiceId
+                                            )) {
+                                                CloudBookCard(
+                                                    book: cloudBook,
+                                                    cloudService: cloudService,
+                                                    streamingService: StreamingEPUBService.shared,
+                                                    tagText: tagText,
+                                                    primaryPink: primaryPink
+                                                )
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                        }
+                                    }
+                                    
+                                    // "Change Batch" button - only show when no filters/search active
+                                    if !hasActiveFilters && searchQuery.isEmpty && cloudBooks.count > 6 {
+                                        Button(action: {
+                                            selectRandomBooks()
+                                        }) {
+                                            HStack(spacing: 8) {
+                                                Image(systemName: "arrow.2.squarepath")
+                                                    .font(.system(size: 16, weight: .medium))
+                                                Text("Change Batch")
+                                                    .font(.system(size: 16, weight: .semibold))
+                                            }
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 14)
+                                            .background(
+                                                LinearGradient(
+                                                    gradient: Gradient(colors: [secondaryPink, primaryPink]),
+                                                    startPoint: .leading,
+                                                    endPoint: .trailing
+                                                )
+                                            )
+                                            .cornerRadius(12)
+                                            .shadow(color: secondaryPink.opacity(0.3), radius: 8, x: 0, y: 4)
+                                        }
+                                        .padding(.top, 8)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 24)
+                            }
                         }
-                        .padding(.vertical, 8)
                     }
-                    
-                    // Results Count
-                    Text("\(filteredBooks.count) \(filteredBooks.count == 1 ? "book" : "books") found")
-                        .font(.system(size: 14))
-                        .foregroundColor(textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                    
-                    // Books Grid
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 12, alignment: .top),
-                        GridItem(.flexible(), spacing: 12, alignment: .top),
-                        GridItem(.flexible(), spacing: 12, alignment: .top)
-                    ], alignment: .leading, spacing: 12) {
-                        ForEach(filteredBooks) { book in
-                            BookCard(book: book, tagText: tagText, primaryPink: primaryPink)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
+                    .background(Color.white)
                 }
             }
-            .background(Color.white)
-        }
-        .onAppear {
-            loadBooks()
-        }
-        .onChange(of: selectedAge) { _ in filterBooks() }
-        .onChange(of: selectedGenre) { _ in filterBooks() }
-        .onChange(of: searchQuery) { _ in filterBooks() }
-        .sheet(isPresented: $showFilterSheet) {
-            FilterSheet(
-                selectedAge: $selectedAge,
-                selectedGenre: $selectedGenre,
-                ageGroups: ageGroups,
-                genres: genres,
-                primaryPink: primaryPink,
-                secondaryPink: secondaryPink,
-                borderLight: borderLight,
-                textPrimary: textPrimary
-            )
+            .onAppear {
+                loadBooks()
+            }
+            .onChange(of: selectedGenre) { oldValue, newValue in filterBooks() }
+            .onChange(of: selectedTag) { oldValue, newValue in filterBooks() }
+            .onChange(of: searchQuery) { oldValue, newValue in filterBooks() }
+            .sheet(isPresented: $showFilterSheet) {
+                FilterSheet(
+                    selectedGenre: $selectedGenre,
+                    selectedTag: $selectedTag,
+                    genres: genres,
+                    primaryPink: primaryPink,
+                    secondaryPink: secondaryPink,
+                    borderLight: borderLight,
+                    textPrimary: textPrimary
+                )
+            }
         }
     }
     
     private var hasActiveFilters: Bool {
-        selectedAge != "all" || selectedGenre != "All"
+        selectedGenre != "All" || selectedTag != "All"
     }
     
     private func loadBooks() {
-        // Start with sample data immediately
-        setSampleBooks()
-        loading = false
-        
-        // Try to fetch from Firebase in background
-        let db = Firestore.firestore()
-        db.collection("books").getDocuments { snapshot, error in
-            if let error = error {
-                print("❌ Firebase error: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let snapshot = snapshot, !snapshot.documents.isEmpty else {
-                print("📚 No books in Firebase, using sample data")
-                return
-            }
-            
-            let fetchedBooks = snapshot.documents.compactMap { doc -> Book? in
-                let data = doc.data()
-                
-                // Manually decode because Firebase ID is separate from document data
-                guard let title = data["title"] as? String,
-                      let author = data["author"] as? String,
-                      let age = data["age"] as? String,
-                      let genre = data["genre"] as? String,
-                      let coverUrl = data["coverUrl"] as? String,
-                      let tags = data["tags"] as? [String] else {
-                    print("⚠️ Failed to decode book: \(doc.documentID)")
-                    return nil
-                }
-                
-                let textContent = data["textContent"] as? String
-                
-                print("📚 Loaded book: \(title) - Cover URL: \(coverUrl)")
-                
-                return Book(
-                    id: doc.documentID, // Use Firebase document ID
-                    title: title,
-                    author: author,
-                    age: age,
-                    genre: genre,
-                    coverUrl: coverUrl,
-                    tags: tags,
-                    textContent: textContent
-                )
-            }
-            
-            if !fetchedBooks.isEmpty {
-                print("✅ Loaded \(fetchedBooks.count) books from Firebase")
-                DispatchQueue.main.async {
-                    self.books = fetchedBooks
+        // Load only cloud books from catalog
+        Task {
+            // Load cloud books from catalog
+            if let catalog = await cloudService.loadCloudCatalog() {
+                await MainActor.run {
+                    self.cloudBooks = catalog.books
+                    print("✅ Loaded \(catalog.books.count) cloud books from catalog")
+                    
+                    // Initially select random books
+                    if !self.cloudBooks.isEmpty {
+                        let shuffled = self.cloudBooks.shuffled()
+                        self.displayedBooks = Array(shuffled.prefix(6))
+                    }
+                    
+                    self.loading = false
                     self.filterBooks()
+                    
+                    print("📚 Total books available: \(self.cloudBooks.count)")
+                }
+            } else {
+                await MainActor.run {
+                    self.loading = false
                 }
             }
         }
     }
     
-    private func setSampleBooks() {
-        books = [
-            Book(id: "1", title: "The Secret Garden", author: "Frances Hodgson Burnett", age: "7-9", genre: "Adventure", coverUrl: "", tags: ["Bestseller"], textContent: nil),
-            Book(id: "2", title: "Where the Wild Things Are", author: "Maurice Sendak", age: "4-6", genre: "Fantasy", coverUrl: "", tags: ["Classic"], textContent: nil),
-            Book(id: "3", title: "Charlotte's Web", author: "E.B. White", age: "7-9", genre: "Animals", coverUrl: "", tags: ["Award Winner"], textContent: nil),
-            Book(id: "4", title: "The Little Prince", author: "Antoine de Saint-Exupéry", age: "10-12", genre: "Fantasy", coverUrl: "", tags: ["Classic"], textContent: nil),
-            Book(id: "5", title: "Goodnight Moon", author: "Margaret Wise Brown", age: "0-3", genre: "Fairy Tales", coverUrl: "", tags: ["Bedtime"], textContent: nil),
-            Book(id: "6", title: "Harry Potter", author: "J.K. Rowling", age: "10-12", genre: "Fantasy", coverUrl: "", tags: ["Trending"], textContent: nil),
-            Book(id: "7", title: "Matilda", author: "Roald Dahl", age: "7-9", genre: "Fantasy", coverUrl: "", tags: ["Popular"], textContent: nil),
-            Book(id: "8", title: "The Very Hungry Caterpillar", author: "Eric Carle", age: "0-3", genre: "Animals", coverUrl: "", tags: ["Classic"], textContent: nil),
-            Book(id: "9", title: "Green Eggs and Ham", author: "Dr. Seuss", age: "4-6", genre: "Friendship", coverUrl: "", tags: ["Popular"], textContent: nil)
-        ]
-        filterBooks()
-    }
-    
     private func filterBooks() {
-        filteredBooks = books.filter { book in
-            let matchesAge = selectedAge == "all" || book.age == selectedAge
+        // If no filters or search are active, show random 6 books
+        if !hasActiveFilters && searchQuery.isEmpty {
+            filteredCloudBooks = displayedBooks
+            return
+        }
+        
+        // Apply filters to cloud books
+        filteredCloudBooks = cloudBooks.filter { book in
             let matchesGenre = selectedGenre == "All" || book.genre == selectedGenre
+            let matchesTag = selectedTag == "All" || book.tags.contains(selectedTag)
             let matchesSearch = searchQuery.isEmpty ||
                 book.title.lowercased().contains(searchQuery.lowercased()) ||
                 book.author.lowercased().contains(searchQuery.lowercased())
-            return matchesAge && matchesGenre && matchesSearch
+            return matchesGenre && matchesTag && matchesSearch
+        }
+    }
+    
+    private func selectRandomBooks() {
+        // Randomly select 6 books from all available books
+        let shuffled = cloudBooks.shuffled()
+        displayedBooks = Array(shuffled.prefix(6))
+        filterBooks()
+    }
+}
+
+// MARK: - Source Chip (All / AI / Classics)
+struct SourceChip: View {
+    let text: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    private let primaryPink = Color(hex: "F9DAD2")
+    private let secondaryPink = Color(hex: "F5B5A8")
+    private let textPrimary = Color(hex: "0F172A")
+    private let textSecondary = Color(hex: "475569")
+    
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+                .foregroundColor(isSelected ? textPrimary : textSecondary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(isSelected ? primaryPink : Color.white)
+                .cornerRadius(20)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(isSelected ? secondaryPink : Color(hex: "E5E7EB"), lineWidth: 2)
+                )
         }
     }
 }
 
-// MARK: - Book Card
+// MARK: - Enhanced Book Card (shows badge for classics)
+struct EnhancedBookCard: View {
+    let book: Book
+    let isBundled: Bool
+    let tagText: Color
+    let primaryPink: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Cover Image
+            GeometryReader { geometry in
+                ZStack(alignment: .topTrailing) {
+                    // Cover image logic
+                    if !book.coverUrl.isEmpty {
+                        if isBundled {
+                            // Try loading from file path first (cached EPUB covers)
+                            if let image = UIImage(contentsOfFile: book.coverUrl) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                    .clipped()
+                            } else if let image = UIImage(named: book.coverUrl) {
+                                // Fallback to Assets bundle
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                    .clipped()
+                            } else {
+                                // Placeholder if no cover found
+                                Rectangle()
+                                    .fill(Color(hex: getRandomColor()))
+                                    .overlay(
+                                        VStack(spacing: 8) {
+                                            Image(systemName: "book.fill")
+                                                .font(.system(size: 32))
+                                                .foregroundColor(.white.opacity(0.8))
+                                            Text("CLASSIC")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(.white.opacity(0.6))
+                                        }
+                                    )
+                            }
+                        } else if let url = URL(string: book.coverUrl) {
+                            // Firebase book URL
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    Rectangle()
+                                        .fill(Color(hex: getRandomColor()))
+                                        .overlay(ProgressView().tint(.white))
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: geometry.size.width, height: geometry.size.height)
+                                        .clipped()
+                                case .failure(_):
+                                    Rectangle().fill(Color(hex: getRandomColor()))
+                                @unknown default:
+                                    Rectangle().fill(Color(hex: getRandomColor()))
+                                }
+                            }
+                        } else {
+                            Rectangle().fill(Color(hex: getRandomColor()))
+                        }
+                    } else {
+                        Rectangle().fill(Color(hex: getRandomColor()))
+                    }
+                }
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+            }
+            .aspectRatio(2/3, contentMode: .fit)
+            
+            // Title and Tag
+            VStack(alignment: .leading, spacing: 0) {
+                Text(book.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "0F172A"))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 6)
+                
+                if !book.tags.isEmpty {
+                    Text(book.tags.first ?? "")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(tagText)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(primaryPink)
+                        .cornerRadius(8)
+                }
+            }
+        }
+    }
+    
+    private func getRandomColor() -> String {
+        let colors = ["8B5CF6", "EC4899", "10B981", "F59E0B", "3B82F6", "EF4444", "06B6D4", "84CC16", "6366F1"]
+        return colors[abs(book.id.hashValue) % colors.count]
+    }
+}
+
+// MARK: - Book Card (kept for compatibility)
 struct BookCard: View {
     let book: Book
     let tagText: Color
@@ -309,53 +454,33 @@ struct BookCard: View {
                         Rectangle()
                             .fill(Color(hex: getRandomColor()))
                     }
-                    
-                    // Age Badge (on top of cover)
-                    Text(book.age)
-                        .font(.system(size: 10, weight: .medium))
+                }
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+            }
+            .aspectRatio(2/3, contentMode: .fit) // Fixed 2:3 aspect ratio
+            
+            // Title and Tag grouped together
+            VStack(alignment: .leading, spacing: 0) {
+                // Title
+                Text(book.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "0F172A"))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 6)
+                
+                // Tag
+                if !book.tags.isEmpty {
+                    Text(book.tags.first ?? "")
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(tagText)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(primaryPink)
-                        .cornerRadius(12)
-                        .padding(6)
-                }
-                .cornerRadius(8)
-                .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
-            }
-            .aspectRatio(2/3, contentMode: .fit) // Fixed 2:3 aspect ratio
-            
-            // Title (Fixed height for consistent alignment)
-            Text(book.title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color(hex: "0F172A"))
-                .lineLimit(2)
-                .frame(minHeight: 32, alignment: .topLeading)
-                .fixedSize(horizontal: false, vertical: true)
-            
-            // Author (Fixed height)
-            Text(book.author)
-                .font(.system(size: 10))
-                .foregroundColor(Color(hex: "6B7280"))
-                .lineLimit(1)
-                .frame(height: 14, alignment: .leading)
-            
-            // Tags (Fixed height to prevent misalignment)
-            Group {
-                if !book.tags.isEmpty {
-                    Text(book.tags.first ?? "")
-                        .font(.system(size: 10))
-                        .foregroundColor(tagText)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(primaryPink)
-                        .cornerRadius(4)
-                } else {
-                    // Empty spacer to maintain consistent height
-                    Color.clear.frame(height: 18)
+                        .cornerRadius(8)
                 }
             }
-            .frame(height: 18, alignment: .leading)
         }
     }
     
@@ -395,39 +520,38 @@ struct FilterBadge: View {
 
 // MARK: - Filter Sheet
 struct FilterSheet: View {
-    @Binding var selectedAge: String
     @Binding var selectedGenre: String
+    @Binding var selectedTag: String
     @Environment(\.dismiss) var dismiss
     
-    let ageGroups: [AgeGroup]
     let genres: [String]
     let primaryPink: Color
     let secondaryPink: Color
     let borderLight: Color
     let textPrimary: Color
     
+    private let tags = ["All", "Classic", "AI"]
+    
     var body: some View {
         NavigationView {
             VStack(alignment: .leading, spacing: 24) {
-                // Age Group Section
+                // Book Type Section (Classic / AI)
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Age Group")
+                    Text("Book Type")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(textPrimary)
                     
-                    FlexibleView(
-                        data: ageGroups,
-                        spacing: 8,
-                        alignment: .leading
-                    ) { item in
-                        FilterChip(
-                            text: item.label,
-                            isSelected: selectedAge == item.key,
-                            primaryPink: primaryPink,
-                            secondaryPink: secondaryPink,
-                            borderLight: borderLight
-                        ) {
-                            selectedAge = item.key
+                    HStack(spacing: 8) {
+                        ForEach(tags, id: \.self) { tag in
+                            FilterChip(
+                                text: tag,
+                                isSelected: selectedTag == tag,
+                                primaryPink: primaryPink,
+                                secondaryPink: secondaryPink,
+                                borderLight: borderLight
+                            ) {
+                                selectedTag = tag
+                            }
                         }
                     }
                 }
@@ -459,8 +583,8 @@ struct FilterSheet: View {
                 
                 // Reset Button
                 Button(action: {
-                    selectedAge = "all"
                     selectedGenre = "All"
+                    selectedTag = "All"
                 }) {
                     Text("Reset Filters")
                         .font(.system(size: 16, weight: .medium))
@@ -601,4 +725,390 @@ extension View {
 struct SizePreferenceKey: PreferenceKey {
     static var defaultValue: CGSize = .zero
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) {}
+}
+
+// MARK: - Cloud Book Card (Unified Design)
+struct CloudBookCard: View {
+    let book: CloudBookMetadata
+    @ObservedObject var cloudService: CloudBookService
+    @ObservedObject var streamingService: StreamingEPUBService
+    let tagText: Color
+    let primaryPink: Color
+    
+    var isDownloaded: Bool {
+        cloudService.isBookDownloaded(bookId: book.id)
+    }
+    
+    var isStreaming: Bool {
+        streamingService.isBookInStreamingCache(bookId: book.id)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Cover Image
+            GeometryReader { geometry in
+                ZStack(alignment: .topTrailing) {
+                    // Cover image logic
+                    if let coverImage = book.localCoverImage {
+                        Image(uiImage: coverImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    } else {
+                        // Placeholder
+                        Rectangle()
+                            .fill(Color(hex: getRandomColor()))
+                            .overlay(
+                                VStack(spacing: 8) {
+                                    Image(systemName: "book.fill")
+                                        .font(.system(size: 32))
+                                        .foregroundColor(.white.opacity(0.8))
+                                    Text("CLOUD")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+                            )
+                    }
+                }
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+            }
+            .aspectRatio(2/3, contentMode: .fit)
+            
+            // Title and Tag
+            VStack(alignment: .leading, spacing: 0) {
+                Text(book.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "0F172A"))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 6)
+                
+                // Show tag
+                if !book.tags.isEmpty {
+                    Text(book.tags.first ?? "")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(tagText)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(primaryPink)
+                        .cornerRadius(8)
+                }
+            }
+        }
+    }
+    
+    private func getRandomColor() -> String {
+        let colors = ["8B5CF6", "EC4899", "10B981", "F59E0B", "3B82F6", "EF4444", "06B6D4", "84CC16", "6366F1"]
+        return colors[abs(book.id.hashValue) % colors.count]
+    }
+}
+
+// MARK: - Cloud Book Details Loader (Handles Streaming)
+struct CloudBookDetailsLoader: View {
+    let cloudBook: CloudBookMetadata
+    let voiceId: String?
+    
+    @StateObject private var streamingService = StreamingEPUBService.shared
+    @State private var epubContent: EPUBContent?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        Group {
+            if isLoading {
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .tint(Color(hex: "F5B5A8"))
+                    
+                    Text("Opening book...")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(hex: "475569"))
+                    
+                    if let progress = streamingService.streamingProgress[cloudBook.id] {
+                        Text("\(Int(progress * 100))% loaded")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "6B7280"))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.white)
+            } else if let error = errorMessage {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 48))
+                        .foregroundColor(.red)
+                    
+                    Text("Failed to open book")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Color(hex: "0F172A"))
+                    
+                    Text(error)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color(hex: "6B7280"))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.white)
+            } else if let content = epubContent {
+                BookDetailsView(
+                    book: Book(
+                        id: cloudBook.id,
+                        title: cloudBook.title,
+                        author: cloudBook.author,
+                        age: cloudBook.age,
+                        genre: cloudBook.genre,
+                        coverUrl: cloudBook.coverImageUrl ?? "",
+                        tags: cloudBook.tags,
+                        textContent: nil,
+                        chapters: content.chapters.map { epubChapter in
+                            Chapter(
+                                id: epubChapter.id,
+                                title: epubChapter.title,
+                                content: epubChapter.content
+                            )
+                        }
+                    ),
+                    voiceId: voiceId,
+                    cloudMetadata: cloudBook
+                )
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadBook()
+        }
+    }
+    
+    private func loadBook() {
+        Task {
+            do {
+                let content = try await streamingService.loadBookForStreaming(metadata: cloudBook)
+                await MainActor.run {
+                    self.epubContent = content
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Old Cloud Book Card (Keep for backward compatibility, but not used)
+struct CloudBookCardCompact: View {
+    let book: CloudBookMetadata
+    @ObservedObject var cloudService: CloudBookService
+    let voiceId: String?
+    let primaryPink: Color
+    let secondaryPink: Color
+    
+    @StateObject private var streamingService = StreamingEPUBService.shared
+    @State private var isLoading = false
+    @State private var showingReader = false
+    @State private var epubContent: EPUBContent?
+    @State private var errorMessage: String?
+    
+    var isDownloaded: Bool {
+        cloudService.isBookDownloaded(bookId: book.id)
+    }
+    
+    var isStreaming: Bool {
+        streamingService.isBookInStreamingCache(bookId: book.id)
+    }
+    
+    var loadingProgress: Double? {
+        streamingService.streamingProgress[book.id]
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Cover Image with Download Progress Overlay
+            GeometryReader { geometry in
+                ZStack(alignment: .center) {
+                    // Cover image
+                    if let coverImage = book.localCoverImage {
+                        Image(uiImage: coverImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    } else {
+                        // Placeholder
+                        Rectangle()
+                            .fill(LinearGradient(
+                                colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.3)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                            .overlay {
+                                Image(systemName: "book.fill")
+                                    .font(.largeTitle)
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                    }
+                    
+                    // Loading Progress Overlay
+                    if let progress = loadingProgress {
+                        ZStack {
+                            // Dimmed background
+                            Color.black.opacity(0.5)
+                            
+                            // Circular progress ring
+                            CircularProgressView(progress: progress, lineWidth: 4)
+                                .frame(width: 60, height: 60)
+                        }
+                    }
+                    
+                    // Status badges
+                    if loadingProgress == nil {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                if isDownloaded {
+                                    // Downloaded badge (green checkmark)
+                                    Image(systemName: "arrow.down.circle.fill")
+                                        .foregroundColor(.green)
+                                        .background(Circle().fill(Color.white).frame(width: 20, height: 20))
+                                        .padding(6)
+                                } else if isStreaming {
+                                    // Streaming badge (cloud icon)
+                                    Image(systemName: "cloud.fill")
+                                        .foregroundColor(.blue)
+                                        .background(Circle().fill(Color.white).frame(width: 20, height: 20))
+                                        .padding(6)
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+            }
+            .aspectRatio(2/3, contentMode: .fit)
+            
+            // Title and status
+            VStack(alignment: .leading, spacing: 2) {
+                Text(book.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "0F172A"))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                // Show status indicator
+                if isDownloaded {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.green)
+                        Text("Downloaded")
+                            .font(.system(size: 11))
+                            .foregroundColor(.green)
+                    }
+                } else if isStreaming && loadingProgress == nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "cloud.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.blue)
+                        Text("In Cache")
+                            .font(.system(size: 11))
+                            .foregroundColor(.blue)
+                    }
+                } else if loadingProgress == nil {
+                    Text(book.fileSizeFormatted)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "6B7280"))
+                }
+            }
+        }
+        .onTapGesture {
+            // Always open immediately (stream if needed)
+            Task {
+                await openBook()
+            }
+        }
+        .fullScreenCover(isPresented: $showingReader) {
+            if let content = epubContent {
+                BookDetailsView(
+                    book: Book(
+                        id: book.id,
+                        title: book.title,
+                        author: book.author,
+                        age: book.age,
+                        genre: book.genre,
+                        coverUrl: book.coverImageUrl ?? "",
+                        tags: book.tags,
+                        textContent: nil,
+                        chapters: content.chapters.map { epubChapter in
+                            Chapter(
+                                id: epubChapter.id,
+                                title: epubChapter.title,
+                                content: epubChapter.content
+                            )
+                        }
+                    ),
+                    voiceId: voiceId,
+                    cloudMetadata: book // Pass cloud metadata for "Save for Offline" feature
+                )
+            }
+        }
+        .alert("Download Error", isPresented: .constant(errorMessage != nil)) {
+            Button("OK") {
+                errorMessage = nil
+            }
+        } message: {
+            if let error = errorMessage {
+                Text(error)
+            }
+        }
+    }
+    
+    private func openBook() async {
+        isLoading = true
+        do {
+            // Use streaming service - downloads to temp if needed, uses permanent if available
+            epubContent = try await streamingService.loadBookForStreaming(metadata: book)
+            isLoading = false
+            showingReader = true
+        } catch {
+            errorMessage = "Failed to open book: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+}
+
+// MARK: - Circular Progress View
+struct CircularProgressView: View {
+    let progress: Double
+    let lineWidth: CGFloat
+    
+    var body: some View {
+        ZStack {
+            // Background circle
+            Circle()
+                .stroke(Color.white.opacity(0.3), lineWidth: lineWidth)
+            
+            // Progress circle
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    Color.white,
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(.linear, value: progress)
+            
+            // Progress text
+            Text("\(Int(progress * 100))%")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white)
+        }
+    }
 }

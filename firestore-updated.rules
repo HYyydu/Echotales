@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    match /books/{bookId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    match /users/{userId}/voices/{voiceId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /voiceRecordings/{recordingId} {
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    match /userShelfBooks/{shelfBookId} {
+      allow read: if request.auth != null &&
+                     (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // ⭐ ADD THIS NEW SECTION FOR READING HISTORY ⭐
+    match /readingHistory/{historyId} {
+      allow read: if request.auth != null && 
+                     resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+    }
+  }
+}
+

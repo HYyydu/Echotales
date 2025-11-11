@@ -1,0 +1,146 @@
+[
+  {
+    "id": "pride-and-prejudice",
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "age": "Adult",
+    "genre": "Romance",
+    "tags": ["Classic", "Romance", "Victorian", "British Literature"],
+    "epubFileName": "pride-and-prejudice.epub",
+    "coverImageName": "pride-and-prejudice-cover",
+    "description": "A witty comedy of manners about love and marriage in Georgian England."
+  },
+  {
+    "id": "frankenstein",
+    "title": "Frankenstein; Or, The Modern Prometheus",
+    "author": "Mary Shelley",
+    "age": "Young Adult",
+    "genre": "Gothic",
+    "tags": ["Classic", "Horror", "Gothic", "Science Fiction"],
+    "epubFileName": "frankenstein.epub",
+    "coverImageName": "frankenstein-cover",
+    "description": "The groundbreaking tale of Victor Frankenstein and his monstrous creation."
+  },
+  {
+    "id": "sherlock-holmes",
+    "title": "The Adventures of Sherlock Holmes",
+    "author": "Arthur Conan Doyle",
+    "age": "Young Adult",
+    "genre": "Mystery",
+    "tags": ["Classic", "Mystery", "Detective", "British Literature"],
+    "epubFileName": "sherlock-holmes.epub",
+    "coverImageName": "sherlock-holmes-cover",
+    "description": "A collection of twelve short stories featuring the famous detective Sherlock Holmes."
+  },
+  {
+    "id": "alice-wonderland",
+    "title": "Alice's Adventures in Wonderland",
+    "author": "Lewis Carroll",
+    "age": "Children",
+    "genre": "Fantasy",
+    "tags": ["Classic", "Fantasy", "Children's Literature", "Adventure"],
+    "epubFileName": "alice-wonderland.epub",
+    "coverImageName": "alice-wonderland-cover",
+    "description": "A young girl's fantastical journey through a whimsical underground world."
+  },
+  {
+    "id": "dracula",
+    "title": "Dracula",
+    "author": "Bram Stoker",
+    "age": "Young Adult",
+    "genre": "Horror",
+    "tags": ["Classic", "Horror", "Gothic", "Vampire"],
+    "epubFileName": "dracula.epub",
+    "coverImageName": "dracula-cover",
+    "description": "The quintessential vampire novel told through letters and diary entries."
+  },
+  {
+    "id": "pooh-corner",
+    "title": "The House at Pooh Corner",
+    "author": "A. A. Milne",
+    "age": "Children",
+    "genre": "Fiction",
+    "tags": ["Classic", "Children's Literature", "Adventure", "Animals", "Friendship"],
+    "epubFileName": "the-house-at-pooh-corner.epub",
+    "coverImageName": "pooh-corner-cover",
+    "description": "This entry in the Winnie-the-Pooh series continues the adventures of Pooh and his friends in the Hundred Acre Wood. This volume introduces Tigger, an unintentional troublemaker who might bounce just a little too much. The stories center on themes of friendship, bravery, all-around silliness, and even sadness as Christopher Robin grows up."
+  },
+  {
+    "id": "driven-back-to-eden",
+    "title": "Driven Back to Eden",
+    "author": "Edward Payson Roe",
+    "age": "Adult",
+    "genre": "Fiction",
+    "tags": ["Classic", "Fiction", "Family", "Rural Life", "American Literature"],
+    "epubFileName": "edward-payson-roe_driven-back-to-eden.epub",
+    "coverImageName": "driven-back-to-eden-cover",
+    "description": "A heartwarming tale of a family leaving city life behind to find peace and prosperity in the countryside."
+  },
+  {
+    "id": "the-road-to-oz",
+    "title": "The Road to Oz",
+    "author": "L. Frank Baum",
+    "age": "Children",
+    "genre": "Fantasy",
+    "tags": ["Classic", "Fantasy", "Children's Literature", "Adventure", "Oz"],
+    "epubFileName": "l-frank-baum_the-road-to-oz.epub",
+    "coverImageName": "the-road-to-oz-cover",
+    "description": "Dorothy and her friends embark on another magical journey through the Land of Oz, encountering strange and wonderful characters along the way."
+  },
+  {
+    "id": "the-mystery-of-cabin-island",
+    "title": "The Mystery of Cabin Island",
+    "author": "Franklin W. Dixon",
+    "age": "Young Adult",
+    "genre": "Mystery",
+    "tags": ["Classic", "Mystery", "Adventure", "Hardy Boys", "Young Adult"],
+    "epubFileName": "franklin-w-dixon_the-mystery-of-cabin-island.epub",
+    "coverImageName": "the-mystery-of-cabin-island-cover",
+    "description": "The Hardy Boys investigate mysterious happenings on a remote island cabin during their winter vacation."
+  },
+  {
+    "id": "understood-betsy",
+    "title": "Understood Betsy",
+    "author": "Dorothy Canfield Fisher",
+    "age": "Children",
+    "genre": "Fiction",
+    "tags": ["Classic", "Fiction", "Children's Literature", "Coming of Age", "Family"],
+    "epubFileName": "dorothy-canfield-fisher_understood-betsy.epub",
+    "coverImageName": "understood-betsy-cover",
+    "description": "A timid city girl discovers her inner strength when she moves to live with relatives on a Vermont farm."
+  },
+  {
+    "id": "the-secret-of-the-caves",
+    "title": "The Secret of the Caves",
+    "author": "Franklin W. Dixon",
+    "age": "Young Adult",
+    "genre": "Mystery",
+    "tags": ["Classic", "Mystery", "Adventure", "Hardy Boys", "Young Adult"],
+    "epubFileName": "franklin-w-dixon_the-secret-of-the-caves.epub",
+    "coverImageName": "the-secret-of-the-caves-cover",
+    "description": "The Hardy Boys uncover a smuggling operation while exploring mysterious coastal caves."
+  },
+  {
+    "id": "dorothy-and-the-wizard-in-oz",
+    "title": "Dorothy and the Wizard in Oz",
+    "author": "L. Frank Baum",
+    "age": "Children",
+    "genre": "Fantasy",
+    "tags": ["Classic", "Fantasy", "Children's Literature", "Adventure", "Oz"],
+    "epubFileName": "l-frank-baum_dorothy-and-the-wizard-in-oz.epub",
+    "coverImageName": "dorothy-and-the-wizard-in-oz-cover",
+    "description": "Dorothy falls through the earth with the Wizard and they journey through strange underground kingdoms to return to the Land of Oz."
+  },
+  {
+    "id": "the-little-star",
+    "title": "The Little Star",
+    "author": "AI",
+    "age": "Children",
+    "genre": "Fantasy",
+    "tags": ["AI", "Children's Literature", "Fantasy", "Short Story"],
+    "epubFileName": "the-little-star.epub",
+    "coverImageName": "the-little-star-cover",
+    "description": "A charming tale about a little star who wanted to shine brighter."
+  }
+]
+

@@ -1,0 +1,14 @@
+# Files to exclude from Docker build
+
+node_modules/
+npm-debug.log
+.env
+.env.*
+.git/
+.gitignore
+README.md
+.DS_Store
+*.md
+.vscode/
+.idea/
+

@@ -1,0 +1,1195 @@
+{
+  "version": 1,
+  "lastUpdated": "2025-11-09",
+  "collections": [
+    {
+      "id": "all",
+      "name": "All Books",
+      "description": "Complete library collection",
+      "sortOrder": 0,
+      "coverImageUrl": null,
+      "bookIds": [
+        "a-a-milne_winnie-the-pooh",
+        "alice-wonderland",
+        "anna-sewell_black-beauty",
+        "beatrix-potter_short-fiction",
+        "carlo-collodi_the-adventures-of-pinocchio",
+        "charles-kingsley_the-water-babies",
+        "dorothy-canfield-fisher_understood-betsy",
+        "dracula",
+        "e-nesbit_five-children-and-it",
+        "e-nesbit_hardings-luck",
+        "e-nesbit_the-house-of-arden",
+        "e-nesbit_the-magic-city",
+        "e-nesbit_the-phoenix-and-the-carpet",
+        "e-nesbit_the-story-of-the-amulet",
+        "e-nesbit_the-story-of-the-treasure-seekers",
+        "e-nesbit_wet-magic",
+        "edward-payson-roe_driven-back-to-eden",
+        "eleanor-h-porter_pollyanna-grows-up",
+        "eleanor-h-porter_pollyanna",
+        "felix-salten_bambi_whittaker-chambers",
+        "frances-hodgson-burnett_a-little-princess",
+        "frances-hodgson-burnett_little-lord-fauntleroy",
+        "francis-la-flesche_the-middle-five",
+        "frankenstein",
+        "franklin-w-dixon_hunting-for-hidden-gold",
+        "franklin-w-dixon_the-house-on-the-cliff",
+        "franklin-w-dixon_the-missing-chums",
+        "franklin-w-dixon_the-mystery-of-cabin-island",
+        "franklin-w-dixon_the-secret-of-the-caves",
+        "franklin-w-dixon_the-secret-of-the-old-mill",
+        "franklin-w-dixon_the-shore-road-mystery",
+        "franklin-w-dixon_the-tower-treasure",
+        "george-macdonald_at-the-back-of-the-north-wind",
+        "henry-handel-richardson_the-getting-of-wisdom",
+        "herminie-templeton-kavanagh_darby-ogill-and-the-good-people",
+        "horatio-alger-jr_ragged-dick",
+        "hugh-lofting_the-voyages-of-doctor-dolittle",
+        "jacob-grimm-wilhelm-grimm_household-tales_margaret-hunt",
+        "johann-david-wyss_the-swiss-family-robinson_mary-jane-godwin-william-godwin",
+        "johanna-spyri_cornelli_elisabeth-p-stork",
+        "johanna-spyri_heidi_elisabeth-p-stork",
+        "joseph-jacobs_indian-fairy-tales",
+        "l-frank-baum_dorothy-and-the-wizard-in-oz",
+        "l-frank-baum_ozma-of-oz",
+        "l-frank-baum_the-road-to-oz",
+        "l-m-montgomery_anne-of-green-gables",
+        "l-m-montgomery_emily-of-new-moon",
+        "maurice-maeterlinck-georgette-leblanc_the-blue-bird_alexander-teixeira-de-mattos",
+        "oscar-wilde_childrens-stories",
+        "owen-johnson_stover-at-yale",
+        "p-g-wodehouse_the-gold-bat",
+        "pride-and-prejudice",
+        "r-m-ballantyne_the-coral-island",
+        "richmal-crompton_just-william",
+        "robert-louis-stevenson_catriona",
+        "s-m-mitra_hindu-tales-from-the-sanskrit",
+        "sherlock-holmes",
+        "the-house-at-pooh-corner",
+        "the-little-star",
+        "thornton-w-burgess_green-forest-stories",
+        "thornton-w-burgess_green-meadow-stories",
+        "will-james_smoky-the-cowhorse",
+        "zitkala-sa_old-indian-legends"
+      ]
+    },
+    {
+      "id": "children",
+      "name": "Children Books",
+      "description": "Books suitable for children readers",
+      "sortOrder": 1,
+      "coverImageUrl": null,
+      "bookIds": [
+        "a-a-milne_winnie-the-pooh",
+        "e-nesbit_five-children-and-it",
+        "frances-hodgson-burnett_a-little-princess",
+        "frances-hodgson-burnett_little-lord-fauntleroy",
+        "hugh-lofting_the-voyages-of-doctor-dolittle",
+        "oscar-wilde_childrens-stories",
+        "the-house-at-pooh-corner"
+      ]
+    },
+    {
+      "id": "adult",
+      "name": "Adult Books",
+      "description": "Books suitable for adult readers",
+      "sortOrder": 2,
+      "coverImageUrl": null,
+      "bookIds": [
+        "alice-wonderland",
+        "anna-sewell_black-beauty",
+        "beatrix-potter_short-fiction",
+        "carlo-collodi_the-adventures-of-pinocchio",
+        "charles-kingsley_the-water-babies",
+        "dorothy-canfield-fisher_understood-betsy",
+        "dracula",
+        "e-nesbit_hardings-luck",
+        "e-nesbit_the-house-of-arden",
+        "e-nesbit_the-magic-city",
+        "e-nesbit_the-phoenix-and-the-carpet",
+        "e-nesbit_the-story-of-the-amulet",
+        "e-nesbit_the-story-of-the-treasure-seekers",
+        "e-nesbit_wet-magic",
+        "edward-payson-roe_driven-back-to-eden",
+        "eleanor-h-porter_pollyanna-grows-up",
+        "eleanor-h-porter_pollyanna",
+        "felix-salten_bambi_whittaker-chambers",
+        "francis-la-flesche_the-middle-five",
+        "frankenstein",
+        "franklin-w-dixon_hunting-for-hidden-gold",
+        "franklin-w-dixon_the-house-on-the-cliff",
+        "franklin-w-dixon_the-missing-chums",
+        "franklin-w-dixon_the-mystery-of-cabin-island",
+        "franklin-w-dixon_the-secret-of-the-caves",
+        "franklin-w-dixon_the-secret-of-the-old-mill",
+        "franklin-w-dixon_the-shore-road-mystery",
+        "franklin-w-dixon_the-tower-treasure",
+        "george-macdonald_at-the-back-of-the-north-wind",
+        "henry-handel-richardson_the-getting-of-wisdom",
+        "herminie-templeton-kavanagh_darby-ogill-and-the-good-people",
+        "horatio-alger-jr_ragged-dick",
+        "jacob-grimm-wilhelm-grimm_household-tales_margaret-hunt",
+        "johann-david-wyss_the-swiss-family-robinson_mary-jane-godwin-william-godwin",
+        "johanna-spyri_cornelli_elisabeth-p-stork",
+        "johanna-spyri_heidi_elisabeth-p-stork",
+        "joseph-jacobs_indian-fairy-tales",
+        "l-frank-baum_dorothy-and-the-wizard-in-oz",
+        "l-frank-baum_ozma-of-oz",
+        "l-frank-baum_the-road-to-oz",
+        "l-m-montgomery_anne-of-green-gables",
+        "l-m-montgomery_emily-of-new-moon",
+        "maurice-maeterlinck-georgette-leblanc_the-blue-bird_alexander-teixeira-de-mattos",
+        "owen-johnson_stover-at-yale",
+        "p-g-wodehouse_the-gold-bat",
+        "pride-and-prejudice",
+        "r-m-ballantyne_the-coral-island",
+        "richmal-crompton_just-william",
+        "robert-louis-stevenson_catriona",
+        "s-m-mitra_hindu-tales-from-the-sanskrit",
+        "sherlock-holmes",
+        "the-little-star",
+        "thornton-w-burgess_green-forest-stories",
+        "thornton-w-burgess_green-meadow-stories",
+        "will-james_smoky-the-cowhorse",
+        "zitkala-sa_old-indian-legends"
+      ]
+    },
+    {
+      "id": "fantasy",
+      "name": "Fantasy",
+      "description": "Fantasy books from our collection",
+      "sortOrder": 3,
+      "coverImageUrl": null,
+      "bookIds": [
+        "e-nesbit_the-magic-city",
+        "e-nesbit_wet-magic",
+        "l-frank-baum_dorothy-and-the-wizard-in-oz"
+      ]
+    },
+    {
+      "id": "fiction",
+      "name": "Fiction",
+      "description": "Fiction books from our collection",
+      "sortOrder": 4,
+      "coverImageUrl": null,
+      "bookIds": [
+        "a-a-milne_winnie-the-pooh",
+        "alice-wonderland",
+        "anna-sewell_black-beauty",
+        "beatrix-potter_short-fiction",
+        "carlo-collodi_the-adventures-of-pinocchio",
+        "charles-kingsley_the-water-babies",
+        "dorothy-canfield-fisher_understood-betsy",
+        "dracula",
+        "e-nesbit_five-children-and-it",
+        "e-nesbit_hardings-luck",
+        "e-nesbit_the-house-of-arden",
+        "e-nesbit_the-phoenix-and-the-carpet",
+        "e-nesbit_the-story-of-the-amulet",
+        "e-nesbit_the-story-of-the-treasure-seekers",
+        "edward-payson-roe_driven-back-to-eden",
+        "eleanor-h-porter_pollyanna-grows-up",
+        "eleanor-h-porter_pollyanna",
+        "felix-salten_bambi_whittaker-chambers",
+        "frances-hodgson-burnett_a-little-princess",
+        "frances-hodgson-burnett_little-lord-fauntleroy",
+        "francis-la-flesche_the-middle-five",
+        "frankenstein",
+        "franklin-w-dixon_hunting-for-hidden-gold",
+        "franklin-w-dixon_the-house-on-the-cliff",
+        "franklin-w-dixon_the-missing-chums",
+        "franklin-w-dixon_the-secret-of-the-caves",
+        "franklin-w-dixon_the-secret-of-the-old-mill",
+        "franklin-w-dixon_the-tower-treasure",
+        "george-macdonald_at-the-back-of-the-north-wind",
+        "henry-handel-richardson_the-getting-of-wisdom",
+        "herminie-templeton-kavanagh_darby-ogill-and-the-good-people",
+        "horatio-alger-jr_ragged-dick",
+        "hugh-lofting_the-voyages-of-doctor-dolittle",
+        "jacob-grimm-wilhelm-grimm_household-tales_margaret-hunt",
+        "johann-david-wyss_the-swiss-family-robinson_mary-jane-godwin-william-godwin",
+        "johanna-spyri_cornelli_elisabeth-p-stork",
+        "johanna-spyri_heidi_elisabeth-p-stork",
+        "joseph-jacobs_indian-fairy-tales",
+        "l-frank-baum_ozma-of-oz",
+        "l-frank-baum_the-road-to-oz",
+        "l-m-montgomery_anne-of-green-gables",
+        "l-m-montgomery_emily-of-new-moon",
+        "maurice-maeterlinck-georgette-leblanc_the-blue-bird_alexander-teixeira-de-mattos",
+        "oscar-wilde_childrens-stories",
+        "owen-johnson_stover-at-yale",
+        "p-g-wodehouse_the-gold-bat",
+        "r-m-ballantyne_the-coral-island",
+        "richmal-crompton_just-william",
+        "robert-louis-stevenson_catriona",
+        "s-m-mitra_hindu-tales-from-the-sanskrit",
+        "sherlock-holmes",
+        "the-house-at-pooh-corner",
+        "the-little-star",
+        "thornton-w-burgess_green-forest-stories",
+        "thornton-w-burgess_green-meadow-stories",
+        "will-james_smoky-the-cowhorse",
+        "zitkala-sa_old-indian-legends"
+      ]
+    },
+    {
+      "id": "mystery",
+      "name": "Mystery",
+      "description": "Mystery books from our collection",
+      "sortOrder": 5,
+      "coverImageUrl": null,
+      "bookIds": [
+        "franklin-w-dixon_the-mystery-of-cabin-island",
+        "franklin-w-dixon_the-shore-road-mystery"
+      ]
+    }
+  ],
+  "books": [
+    {
+      "id": "the-little-star",
+      "title": "the little star",
+      "author": "AI",
+      "age": "Children",
+      "genre": "Fiction",
+      "tags": [
+        "AI"
+      ],
+      "description": "A fiction book by Unknown.",
+      "storageUrl": "epubs/the-little-star.epub",
+      "coverImageUrl": "BookCovers/the-little-star.png",
+      "fileSizeBytes": 8312,
+      "isFeatured": false
+    },
+    {
+      "id": "frances-hodgson-burnett_a-little-princess",
+      "title": "A Little Princess",
+      "author": "Frances Hodgson Burnett",
+      "age": "Children",
+      "genre": "Family",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young girl discovers a life of unexpected challenges when she goes to live at a London boarding school.",
+      "storageUrl": "epubs/frances-hodgson-burnett_a-little-princess.epub",
+      "coverImageUrl": "BookCovers/frances-hodgson-burnett_a-little-princess.png",
+      "fileSizeBytes": 536624,
+      "isFeatured": false
+    },
+    {
+      "id": "alice-wonderland",
+      "title": "Alice’s Adventures in Wonderland",
+      "author": "Lewis Carroll",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young girl follows a white rabbit into a strange land of poetry, humor, and whimsy.",
+      "storageUrl": "epubs/alice-wonderland.epub",
+      "coverImageUrl": "BookCovers/alice-wonderland.png",
+      "fileSizeBytes": 16597662,
+      "isFeatured": false
+    },
+    {
+      "id": "l-m-montgomery_anne-of-green-gables",
+      "title": "Anne of Green Gables",
+      "author": "L. M. Montgomery",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A coming-of-age story of a young girl growing up on a farm on Prince Edward Island.",
+      "storageUrl": "epubs/l-m-montgomery_anne-of-green-gables.epub",
+      "coverImageUrl": "BookCovers/l-m-montgomery_anne-of-green-gables.png",
+      "fileSizeBytes": 1046944,
+      "isFeatured": false
+    },
+    {
+      "id": "george-macdonald_at-the-back-of-the-north-wind",
+      "title": "At the Back of the North Wind",
+      "author": "George MacDonald",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young boy’s life is transformed by his visit to the country at the back of the north wind.",
+      "storageUrl": "epubs/george-macdonald_at-the-back-of-the-north-wind.epub",
+      "coverImageUrl": "BookCovers/george-macdonald_at-the-back-of-the-north-wind.png",
+      "fileSizeBytes": 712351,
+      "isFeatured": false
+    },
+    {
+      "id": "felix-salten_bambi_whittaker-chambers",
+      "title": "Bambi",
+      "author": "Felix Salten",
+      "age": "Adult",
+      "genre": "Animals",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A roe deer learns the rules of the forest and how to survive in a world inhabited by men as he grows to maturity.",
+      "storageUrl": "epubs/felix-salten_bambi_whittaker-chambers.epub",
+      "coverImageUrl": "BookCovers/felix-salten_bambi_whittaker-chambers.png",
+      "fileSizeBytes": 697309,
+      "isFeatured": false
+    },
+    {
+      "id": "anna-sewell_black-beauty",
+      "title": "Black Beauty",
+      "author": "Anna Sewell",
+      "age": "Adult",
+      "genre": "Animals",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A memoir narrated by a horse whose idyllic time on an English farm prepares him for a life filled with constant change and varied circumstances.",
+      "storageUrl": "epubs/anna-sewell_black-beauty.epub",
+      "coverImageUrl": "BookCovers/anna-sewell_black-beauty.png",
+      "fileSizeBytes": 456869,
+      "isFeatured": false
+    },
+    {
+      "id": "robert-louis-stevenson_catriona",
+      "title": "Catriona",
+      "author": "Robert Louis Stevenson",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "After coming into his fortune and evading his uncle’s schemes, young gentleman David Balfour continues his adventures in 18th century Scotland, helping a politically unwelcome friend escape into France, avoiding the hangman himself, finding his place as a gentleman in Edinburgh society, and falling in love with the daughter of a notorious Macgregor clansman.",
+      "storageUrl": "epubs/robert-louis-stevenson_catriona.epub",
+      "coverImageUrl": "BookCovers/robert-louis-stevenson_catriona.png",
+      "fileSizeBytes": 604774,
+      "isFeatured": false
+    },
+    {
+      "id": "oscar-wilde_childrens-stories",
+      "title": "Children’s Stories",
+      "author": "Oscar Wilde",
+      "age": "Children",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A collection of Oscar Wilde’s children’s stories.",
+      "storageUrl": "epubs/oscar-wilde_childrens-stories.epub",
+      "coverImageUrl": "BookCovers/oscar-wilde_childrens-stories.png",
+      "fileSizeBytes": 914075,
+      "isFeatured": false
+    },
+    {
+      "id": "johanna-spyri_cornelli_elisabeth-p-stork",
+      "title": "Cornelli",
+      "author": "Johanna Spyri",
+      "age": "Adult",
+      "genre": "Family",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young girl’s emotional hurt requires time and love to heal.",
+      "storageUrl": "epubs/johanna-spyri_cornelli_elisabeth-p-stork.epub",
+      "coverImageUrl": "BookCovers/johanna-spyri_cornelli_elisabeth-p-stork.png",
+      "fileSizeBytes": 604969,
+      "isFeatured": false
+    },
+    {
+      "id": "herminie-templeton-kavanagh_darby-ogill-and-the-good-people",
+      "title": "Darby O’Gill and the Good People",
+      "author": "Herminie Templeton Kavanagh",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "When Tipperary man Darby O’Gill is imprisoned by the fairies of Sleive-na-mon in their home under the hollow mountain, he starts a lasting friendship with their King Brian Connors.",
+      "storageUrl": "epubs/herminie-templeton-kavanagh_darby-ogill-and-the-good-people.epub",
+      "coverImageUrl": "BookCovers/herminie-templeton-kavanagh_darby-ogill-and-the-good-people.png",
+      "fileSizeBytes": 622924,
+      "isFeatured": false
+    },
+    {
+      "id": "l-frank-baum_dorothy-and-the-wizard-in-oz",
+      "title": "Dorothy and the Wizard in Oz",
+      "author": "L. Frank Baum",
+      "age": "Adult",
+      "genre": "Fantasy",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young girl and her companions travel through dangerous underground realms with the help of an old friend.",
+      "storageUrl": "epubs/l-frank-baum_dorothy-and-the-wizard-in-oz.epub",
+      "coverImageUrl": "BookCovers/dorothy-and-the-wizard-in-oz-cover.png",
+      "fileSizeBytes": 703005,
+      "isFeatured": false
+    },
+    {
+      "id": "dracula",
+      "title": "Dracula",
+      "author": "Bram Stoker",
+      "age": "Adult",
+      "genre": "Gothic",
+      "tags": [
+        "Classic"
+      ],
+      "description": "An ancient undead monster terrorizes Victorian London.",
+      "storageUrl": "epubs/dracula.epub",
+      "coverImageUrl": "BookCovers/dracula.png",
+      "fileSizeBytes": 605405,
+      "isFeatured": false
+    },
+    {
+      "id": "edward-payson-roe_driven-back-to-eden",
+      "title": "Driven Back to Eden",
+      "author": "Edward Payson Roe",
+      "age": "Adult",
+      "genre": "Family",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A family leaves their crowded New York City flat to find health, happiness, and wholesome work in the countryside.",
+      "storageUrl": "epubs/edward-payson-roe_driven-back-to-eden.epub",
+      "coverImageUrl": "BookCovers/edward-payson-roe_driven-back-to-eden.png",
+      "fileSizeBytes": 622776,
+      "isFeatured": false
+    },
+    {
+      "id": "l-m-montgomery_emily-of-new-moon",
+      "title": "Emily of New Moon",
+      "author": "L. M. Montgomery",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A budding poetess and orphan goes to live with her estranged aunts.",
+      "storageUrl": "epubs/l-m-montgomery_emily-of-new-moon.epub",
+      "coverImageUrl": "BookCovers/l-m-montgomery_emily-of-new-moon.png",
+      "fileSizeBytes": 1046210,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_five-children-and-it",
+      "title": "Five Children and It",
+      "author": "E. Nesbit",
+      "age": "Children",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Five children encounter an ancient magical creature who grants them wishes—all of which go comically wrong.",
+      "storageUrl": "epubs/e-nesbit_five-children-and-it.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_five-children-and-it.png",
+      "fileSizeBytes": 705710,
+      "isFeatured": false
+    },
+    {
+      "id": "frankenstein",
+      "title": "Frankenstein",
+      "author": "Mary Shelley",
+      "age": "Adult",
+      "genre": "Gothic",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A tragic scientist creates a monster in his laboratory.",
+      "storageUrl": "epubs/frankenstein.epub",
+      "coverImageUrl": "BookCovers/frankenstein.png",
+      "fileSizeBytes": 661078,
+      "isFeatured": false
+    },
+    {
+      "id": "thornton-w-burgess_green-forest-stories",
+      "title": "Green Forest Stories",
+      "author": "Thornton W. Burgess",
+      "age": "Adult",
+      "genre": "Animals",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A collection of four animal tales featuring the denizens of the Green Forest.",
+      "storageUrl": "epubs/thornton-w-burgess_green-forest-stories.epub",
+      "coverImageUrl": "BookCovers/thornton-w-burgess_green-forest-stories.png",
+      "fileSizeBytes": 609594,
+      "isFeatured": false
+    },
+    {
+      "id": "thornton-w-burgess_green-meadow-stories",
+      "title": "Green Meadow Stories",
+      "author": "Thornton W. Burgess",
+      "age": "Adult",
+      "genre": "Animals",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A compilation of four distinct but entwined animal tales featuring the denizens of the Green Meadows.",
+      "storageUrl": "epubs/thornton-w-burgess_green-meadow-stories.epub",
+      "coverImageUrl": "BookCovers/thornton-w-burgess_green-meadow-stories.png",
+      "fileSizeBytes": 798193,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_hardings-luck",
+      "title": "Harding’s Luck",
+      "author": "E. Nesbit",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A poor orphan boy accidentally discovers magic which sends him into the past and leads to his recovery of a fortune and a lordly title.",
+      "storageUrl": "epubs/e-nesbit_hardings-luck.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_hardings-luck.png",
+      "fileSizeBytes": 481148,
+      "isFeatured": false
+    },
+    {
+      "id": "johanna-spyri_heidi_elisabeth-p-stork",
+      "title": "Heidi",
+      "author": "Johanna Spyri",
+      "age": "Adult",
+      "genre": "Family",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A small girl is left with her grandfather and falls in love with his alpine home.",
+      "storageUrl": "epubs/johanna-spyri_heidi_elisabeth-p-stork.epub",
+      "coverImageUrl": "BookCovers/johanna-spyri_heidi_elisabeth-p-stork.png",
+      "fileSizeBytes": 1180426,
+      "isFeatured": false
+    },
+    {
+      "id": "s-m-mitra_hindu-tales-from-the-sanskrit",
+      "title": "Hindu Tales from the Sanskrit",
+      "author": "S. M. Mitra",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Short stories and fables from the Sanskrit tradition.",
+      "storageUrl": "epubs/s-m-mitra_hindu-tales-from-the-sanskrit.epub",
+      "coverImageUrl": "BookCovers/s-m-mitra_hindu-tales-from-the-sanskrit.png",
+      "fileSizeBytes": 530374,
+      "isFeatured": false
+    },
+    {
+      "id": "jacob-grimm-wilhelm-grimm_household-tales_margaret-hunt",
+      "title": "Household Tales",
+      "author": "Jacob Grimm",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A collection of Germanic fairy tales containing the classic stories of Cinderella, Snow-White, Rapunzel, and other well known characters.",
+      "storageUrl": "epubs/jacob-grimm-wilhelm-grimm_household-tales_margaret-hunt.epub",
+      "coverImageUrl": "BookCovers/jacob-grimm-wilhelm-grimm_household-tales_margaret-hunt.png",
+      "fileSizeBytes": 1187303,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_hunting-for-hidden-gold",
+      "title": "Hunting for Hidden Gold",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Two boy sleuths unravel a mystery about stolen gold.",
+      "storageUrl": "epubs/franklin-w-dixon_hunting-for-hidden-gold.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_hunting-for-hidden-gold.png",
+      "fileSizeBytes": 567386,
+      "isFeatured": false
+    },
+    {
+      "id": "joseph-jacobs_indian-fairy-tales",
+      "title": "Indian Fairy Tales",
+      "author": "Joseph Jacobs",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A collection of fairy tales that exhibits India’s rich folk tale tradition.",
+      "storageUrl": "epubs/joseph-jacobs_indian-fairy-tales.epub",
+      "coverImageUrl": "BookCovers/joseph-jacobs_indian-fairy-tales.png",
+      "fileSizeBytes": 678376,
+      "isFeatured": false
+    },
+    {
+      "id": "richmal-crompton_just-william",
+      "title": "Just William",
+      "author": "Richmal Crompton",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "An eleven-year old English boy gets involved in a continuous series of amusing adventures to the exasperation of his long-suffering family.",
+      "storageUrl": "epubs/richmal-crompton_just-william.epub",
+      "coverImageUrl": "BookCovers/richmal-crompton_just-william.png",
+      "fileSizeBytes": 466696,
+      "isFeatured": false
+    },
+    {
+      "id": "frances-hodgson-burnett_little-lord-fauntleroy",
+      "title": "Little Lord Fauntleroy",
+      "author": "Frances Hodgson Burnett",
+      "age": "Children",
+      "genre": "Family",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A poor young boy unexpectedly inherits a peerage and travels to England to live with his grandfather, an Earl.",
+      "storageUrl": "epubs/frances-hodgson-burnett_little-lord-fauntleroy.epub",
+      "coverImageUrl": "BookCovers/frances-hodgson-burnett_little-lord-fauntleroy.png",
+      "fileSizeBytes": 534169,
+      "isFeatured": false
+    },
+    {
+      "id": "zitkala-sa_old-indian-legends",
+      "title": "Old Indian Legends",
+      "author": "Zitkála-Šá",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A collection of Dakota legends retold by Zitkála-Šá.",
+      "storageUrl": "epubs/zitkala-sa_old-indian-legends.epub",
+      "coverImageUrl": "BookCovers/zitkala-sa_old-indian-legends.png",
+      "fileSizeBytes": 390009,
+      "isFeatured": false
+    },
+    {
+      "id": "l-frank-baum_ozma-of-oz",
+      "title": "Ozma of Oz",
+      "author": "L. Frank Baum",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A girl gets whisked away to a fairy land and helps restore the proper rulers to the throne.",
+      "storageUrl": "epubs/l-frank-baum_ozma-of-oz.epub",
+      "coverImageUrl": "BookCovers/l-frank-baum_ozma-of-oz.png",
+      "fileSizeBytes": 519798,
+      "isFeatured": false
+    },
+    {
+      "id": "eleanor-h-porter_pollyanna",
+      "title": "Pollyanna",
+      "author": "Eleanor H. Porter",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "An orphan’s unrelenting optimism sees her through adversity and lifts up her new community.",
+      "storageUrl": "epubs/eleanor-h-porter_pollyanna.epub",
+      "coverImageUrl": "BookCovers/eleanor-h-porter_pollyanna.png",
+      "fileSizeBytes": 685210,
+      "isFeatured": false
+    },
+    {
+      "id": "eleanor-h-porter_pollyanna-grows-up",
+      "title": "Pollyanna Grows Up",
+      "author": "Eleanor H. Porter",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Pollyanna recovers from an automobile accident with the help of a nearby dowager, before leaving the country to later return to rural Vermont.",
+      "storageUrl": "epubs/eleanor-h-porter_pollyanna-grows-up.epub",
+      "coverImageUrl": "BookCovers/eleanor-h-porter_pollyanna-grows-up.png",
+      "fileSizeBytes": 957743,
+      "isFeatured": false
+    },
+    {
+      "id": "pride-and-prejudice",
+      "title": "Pride and Prejudice",
+      "author": "Jane Austen",
+      "age": "Adult",
+      "genre": "Romance",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A Regency-era novel of manners in which five women try to adjust to their new neighbor, an eligible gentleman.",
+      "storageUrl": "epubs/pride-and-prejudice.epub",
+      "coverImageUrl": "BookCovers/pride-and-prejudice.png",
+      "fileSizeBytes": 801990,
+      "isFeatured": false
+    },
+    {
+      "id": "horatio-alger-jr_ragged-dick",
+      "title": "Ragged Dick",
+      "author": "Horatio Alger Jr.",
+      "age": "Adult",
+      "genre": "Fiction",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young shoeshiner rises the social ladder thanks to his wits, his work ethic, his honesty, and a bit of luck.",
+      "storageUrl": "epubs/horatio-alger-jr_ragged-dick.epub",
+      "coverImageUrl": "BookCovers/horatio-alger-jr_ragged-dick.png",
+      "fileSizeBytes": 513191,
+      "isFeatured": false
+    },
+    {
+      "id": "beatrix-potter_short-fiction",
+      "title": "Short Fiction",
+      "author": "Beatrix Potter",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A collection of Beatrix Potter’s short stories for children, ordered by date of publication.",
+      "storageUrl": "epubs/beatrix-potter_short-fiction.epub",
+      "coverImageUrl": "BookCovers/beatrix-potter_short-fiction.png",
+      "fileSizeBytes": 34679367,
+      "isFeatured": false
+    },
+    {
+      "id": "will-james_smoky-the-cowhorse",
+      "title": "Smoky the Cowhorse",
+      "author": "Will James",
+      "age": "Adult",
+      "genre": "Animals",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Smoky, a gray-colored horse, grows into adulthood on the ranges of the American West.",
+      "storageUrl": "epubs/will-james_smoky-the-cowhorse.epub",
+      "coverImageUrl": "BookCovers/will-james_smoky-the-cowhorse.png",
+      "fileSizeBytes": 723825,
+      "isFeatured": false
+    },
+    {
+      "id": "owen-johnson_stover-at-yale",
+      "title": "Stover at Yale",
+      "author": "Owen Johnson",
+      "age": "Adult",
+      "genre": "Romance",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young prep school football star arrives at Yale, where he grows and develops on the football field and off.",
+      "storageUrl": "epubs/owen-johnson_stover-at-yale.epub",
+      "coverImageUrl": "BookCovers/owen-johnson_stover-at-yale.png",
+      "fileSizeBytes": 612998,
+      "isFeatured": false
+    },
+    {
+      "id": "carlo-collodi_the-adventures-of-pinocchio",
+      "title": "The Adventures of Pinocchio",
+      "author": "Carlo Collodi",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A wooden puppet comes to life and goes on adventures.",
+      "storageUrl": "epubs/carlo-collodi_the-adventures-of-pinocchio.epub",
+      "coverImageUrl": "BookCovers/carlo-collodi_the-adventures-of-pinocchio.png",
+      "fileSizeBytes": 530425,
+      "isFeatured": false
+    },
+    {
+      "id": "sherlock-holmes",
+      "title": "The Adventures of Sherlock Holmes",
+      "author": "Arthur Conan Doyle",
+      "age": "Adult",
+      "genre": "Mystery",
+      "tags": [
+        "Classic"
+      ],
+      "description": "The world’s first consulting detective investigates a variety of intriguing cases in the first Holmes short story collection.",
+      "storageUrl": "epubs/sherlock-holmes.epub",
+      "coverImageUrl": "BookCovers/sherlock-holmes.png",
+      "fileSizeBytes": 698537,
+      "isFeatured": false
+    },
+    {
+      "id": "maurice-maeterlinck-georgette-leblanc_the-blue-bird_alexander-teixeira-de-mattos",
+      "title": "The Blue Bird",
+      "author": "Maurice Maeterlinck",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Two children go on a magical adventure in search of the Blue Bird.",
+      "storageUrl": "epubs/maurice-maeterlinck-georgette-leblanc_the-blue-bird_alexander-teixeira-de-mattos.epub",
+      "coverImageUrl": "BookCovers/maurice-maeterlinck-georgette-leblanc_the-blue-bird_alexander-teixeira-de-mattos.png",
+      "fileSizeBytes": 747331,
+      "isFeatured": false
+    },
+    {
+      "id": "r-m-ballantyne_the-coral-island",
+      "title": "The Coral Island",
+      "author": "R. M. Ballantyne",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Three shipwrecked youths encounter delights and dangers as they attempt to escape their uninhabited tropical island paradise.",
+      "storageUrl": "epubs/r-m-ballantyne_the-coral-island.epub",
+      "coverImageUrl": "BookCovers/r-m-ballantyne_the-coral-island.png",
+      "fileSizeBytes": 669146,
+      "isFeatured": false
+    },
+    {
+      "id": "henry-handel-richardson_the-getting-of-wisdom",
+      "title": "The Getting of Wisdom",
+      "author": "Henry Handel Richardson",
+      "age": "Adult",
+      "genre": "Fiction",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A girl from rural Victoria is sent to a prestigious boarding school in Melbourne, where she grows in prejudice and deceitfulness.",
+      "storageUrl": "epubs/henry-handel-richardson_the-getting-of-wisdom.epub",
+      "coverImageUrl": "BookCovers/henry-handel-richardson_the-getting-of-wisdom.png",
+      "fileSizeBytes": 746193,
+      "isFeatured": false
+    },
+    {
+      "id": "p-g-wodehouse_the-gold-bat",
+      "title": "The Gold Bat",
+      "author": "P. G. Wodehouse",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "The boys of Wrykyn School battle to defend their honor against rival sports teams and enemies from within.",
+      "storageUrl": "epubs/p-g-wodehouse_the-gold-bat.epub",
+      "coverImageUrl": "BookCovers/p-g-wodehouse_the-gold-bat.png",
+      "fileSizeBytes": 871024,
+      "isFeatured": false
+    },
+    {
+      "id": "the-house-at-pooh-corner",
+      "title": "The House at Pooh Corner",
+      "author": "A. A. Milne",
+      "age": "Children",
+      "genre": "Animals",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A stuffed bear goes on adventures in the woods with his friends.",
+      "storageUrl": "epubs/the-house-at-pooh-corner.epub",
+      "coverImageUrl": "BookCovers/the-house-at-pooh-corner.png",
+      "fileSizeBytes": 469060,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_the-house-of-arden",
+      "title": "The House of Arden",
+      "author": "E. Nesbit",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Two children, with the aid of a magical white mole, travel into the past in search of their family’s long-lost treasure.",
+      "storageUrl": "epubs/e-nesbit_the-house-of-arden.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_the-house-of-arden.png",
+      "fileSizeBytes": 376547,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_the-house-on-the-cliff",
+      "title": "The House on the Cliff",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "After visiting a suspected haunted house, two brothers and their friends embark on an adventure to see if there’s trouble afoot.",
+      "storageUrl": "epubs/franklin-w-dixon_the-house-on-the-cliff.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_the-house-on-the-cliff.png",
+      "fileSizeBytes": 531696,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_the-magic-city",
+      "title": "The Magic City",
+      "author": "E. Nesbit",
+      "age": "Adult",
+      "genre": "Fantasy",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young boy, upset by his older sister’s recent marriage, builds an imaginary city out of blocks and household items and then finds himself living inside it.",
+      "storageUrl": "epubs/e-nesbit_the-magic-city.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_the-magic-city.png",
+      "fileSizeBytes": 417675,
+      "isFeatured": false
+    },
+    {
+      "id": "francis-la-flesche_the-middle-five",
+      "title": "The Middle Five",
+      "author": "Francis La Flesche",
+      "age": "Adult",
+      "genre": "Family",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Five Omaha boys attend a mission school.",
+      "storageUrl": "epubs/francis-la-flesche_the-middle-five.epub",
+      "coverImageUrl": "BookCovers/francis-la-flesche_the-middle-five.png",
+      "fileSizeBytes": 970703,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_the-missing-chums",
+      "title": "The Missing Chums",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Two friends go missing on a boat trip, and the Hardy Boys investigate.",
+      "storageUrl": "epubs/franklin-w-dixon_the-missing-chums.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_the-missing-chums.png",
+      "fileSizeBytes": 482966,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_the-mystery-of-cabin-island",
+      "title": "The Mystery of Cabin Island",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Mystery",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A group of amateur detectives unravel the mystery of a missing stamps collection.",
+      "storageUrl": "epubs/franklin-w-dixon_the-mystery-of-cabin-island.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_the-mystery-of-cabin-island.png",
+      "fileSizeBytes": 681235,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_the-phoenix-and-the-carpet",
+      "title": "The Phoenix and the Carpet",
+      "author": "E. Nesbit",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Five children once again encounter an ancient, magical creature and go on adventures around the world with its magic carpet.",
+      "storageUrl": "epubs/e-nesbit_the-phoenix-and-the-carpet.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_the-phoenix-and-the-carpet.png",
+      "fileSizeBytes": 514449,
+      "isFeatured": false
+    },
+    {
+      "id": "l-frank-baum_the-road-to-oz",
+      "title": "The Road to Oz",
+      "author": "L. Frank Baum",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young girl takes a passerby down the road near her farm when they find themselves transported to another land.",
+      "storageUrl": "epubs/l-frank-baum_the-road-to-oz.epub",
+      "coverImageUrl": "BookCovers/l-frank-baum_the-road-to-oz.png",
+      "fileSizeBytes": 1159807,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_the-secret-of-the-caves",
+      "title": "The Secret of the Caves",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Four boys vacation at nearby caves only to be swept up in a mystery.",
+      "storageUrl": "epubs/franklin-w-dixon_the-secret-of-the-caves.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_the-secret-of-the-caves.png",
+      "fileSizeBytes": 464279,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_the-secret-of-the-old-mill",
+      "title": "The Secret of the Old Mill",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "The police are out of their depth as counterfeit bills circulate through the city, but two amateur sleuths are on the case.",
+      "storageUrl": "epubs/franklin-w-dixon_the-secret-of-the-old-mill.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_the-secret-of-the-old-mill.png",
+      "fileSizeBytes": 540439,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_the-shore-road-mystery",
+      "title": "The Shore Road Mystery",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Mystery",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Two amateur slueths endeavor to break up a carjacking ring.",
+      "storageUrl": "epubs/franklin-w-dixon_the-shore-road-mystery.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_the-shore-road-mystery.png",
+      "fileSizeBytes": 528424,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_the-story-of-the-amulet",
+      "title": "The Story of the Amulet",
+      "author": "E. Nesbit",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Four children are reunited with an ancient, magical creature and go on adventures through time with a magic amulet.",
+      "storageUrl": "epubs/e-nesbit_the-story-of-the-amulet.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_the-story-of-the-amulet.png",
+      "fileSizeBytes": 742810,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_the-story-of-the-treasure-seekers",
+      "title": "The Story of the Treasure Seekers",
+      "author": "E. Nesbit",
+      "age": "Adult",
+      "genre": "Friendship",
+      "tags": [
+        "Classic"
+      ],
+      "description": "Six siblings search for treasure in order to restore their lost family fortune.",
+      "storageUrl": "epubs/e-nesbit_the-story-of-the-treasure-seekers.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_the-story-of-the-treasure-seekers.png",
+      "fileSizeBytes": 563066,
+      "isFeatured": false
+    },
+    {
+      "id": "johann-david-wyss_the-swiss-family-robinson_mary-jane-godwin-william-godwin",
+      "title": "The Swiss Family Robinson",
+      "author": "Johann David Wyss",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A Swiss family is shipwrecked on a remote island in the East Indies.",
+      "storageUrl": "epubs/johann-david-wyss_the-swiss-family-robinson_mary-jane-godwin-william-godwin.epub",
+      "coverImageUrl": "BookCovers/johann-david-wyss_the-swiss-family-robinson_mary-jane-godwin-william-godwin.png",
+      "fileSizeBytes": 1501944,
+      "isFeatured": false
+    },
+    {
+      "id": "franklin-w-dixon_the-tower-treasure",
+      "title": "The Tower Treasure",
+      "author": "Franklin W. Dixon",
+      "age": "Adult",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "After a tower mansion is robbed, two boys are determined to find the culprit and exonerate their friend’s father.",
+      "storageUrl": "epubs/franklin-w-dixon_the-tower-treasure.epub",
+      "coverImageUrl": "BookCovers/franklin-w-dixon_the-tower-treasure.png",
+      "fileSizeBytes": 579656,
+      "isFeatured": false
+    },
+    {
+      "id": "hugh-lofting_the-voyages-of-doctor-dolittle",
+      "title": "The Voyages of Doctor Dolittle",
+      "author": "Hugh Lofting",
+      "age": "Children",
+      "genre": "Adventure",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young boy begins his apprenticeship with Doctor Dolittle, accompanying him on a series of adventures in search of a floating island and a missing naturalist.",
+      "storageUrl": "epubs/hugh-lofting_the-voyages-of-doctor-dolittle.epub",
+      "coverImageUrl": "BookCovers/hugh-lofting_the-voyages-of-doctor-dolittle.png",
+      "fileSizeBytes": 645162,
+      "isFeatured": false
+    },
+    {
+      "id": "charles-kingsley_the-water-babies",
+      "title": "The Water-Babies",
+      "author": "Charles Kingsley",
+      "age": "Adult",
+      "genre": "Fairy Tales",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young, uneducated, and mistreated chimney sweep is reborn as a denizen of the fairy world, beginning a journey of moral and spiritual growth.",
+      "storageUrl": "epubs/charles-kingsley_the-water-babies.epub",
+      "coverImageUrl": "BookCovers/charles-kingsley_the-water-babies.png",
+      "fileSizeBytes": 577203,
+      "isFeatured": false
+    },
+    {
+      "id": "dorothy-canfield-fisher_understood-betsy",
+      "title": "Understood Betsy",
+      "author": "Dorothy Canfield Fisher",
+      "age": "Adult",
+      "genre": "Family",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A young girl discovers independence, responsibility, and newfound confidence after being sent to live in a farmhouse with her extended family.",
+      "storageUrl": "epubs/dorothy-canfield-fisher_understood-betsy.epub",
+      "coverImageUrl": "BookCovers/dorothy-canfield-fisher_understood-betsy.png",
+      "fileSizeBytes": 489104,
+      "isFeatured": false
+    },
+    {
+      "id": "e-nesbit_wet-magic",
+      "title": "Wet Magic",
+      "author": "E. Nesbit",
+      "age": "Adult",
+      "genre": "Fantasy",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A group of children visiting the seaside free a captive mermaid and visit her domain.",
+      "storageUrl": "epubs/e-nesbit_wet-magic.epub",
+      "coverImageUrl": "BookCovers/e-nesbit_wet-magic.png",
+      "fileSizeBytes": 592746,
+      "isFeatured": false
+    },
+    {
+      "id": "a-a-milne_winnie-the-pooh",
+      "title": "Winnie-the-Pooh",
+      "author": "A. A. Milne",
+      "age": "Children",
+      "genre": "Animals",
+      "tags": [
+        "Classic"
+      ],
+      "description": "A father tells stories to his son about the son’s stuffed animals come to life.",
+      "storageUrl": "epubs/a-a-milne_winnie-the-pooh.epub",
+      "coverImageUrl": "BookCovers/a-a-milne_winnie-the-pooh.png",
+      "fileSizeBytes": 660000,
+      "isFeatured": false
+    }
+  ]
+}
