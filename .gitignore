@@ -72,6 +72,11 @@ yarn-error.log*
 # Firebase sensitive files (IMPORTANT - don't commit these!)
 # Note: We keep GoogleService-Info.plist for iOS and firebase config for web
 # but in production, you should use environment variables
+**/GoogleService-Info.plist
+**/firebase-service-account.json
+
+# API Keys and Configuration Files
+**/Config.plist
 
 # Temporary files
 *.tmp
