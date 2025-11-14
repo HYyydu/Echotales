@@ -6,6 +6,7 @@ struct MeView: View {
     @StateObject private var statsManager = UserStatsManager()
     @State private var showRecordings = false
     @State private var showReadingHistory = false
+    @State private var showDownloadBooks = false
     @State private var showNotifications = false
     @State private var showPrivacySecurity = false
     @State private var showHelpSupport = false
@@ -145,6 +146,20 @@ struct MeView: View {
                             showReadingHistory = true
                         }
                     )
+                    
+                    Divider()
+                        .padding(.leading, 84)
+                    
+                    // My Download Books
+                    NavigationButton(
+                        icon: "arrow.down.circle.fill",
+                        iconColor: accentBlue,
+                        title: "My Download Books",
+                        subtitle: "Read offline books",
+                        action: {
+                            showDownloadBooks = true
+                        }
+                    )
                 }
                 .background(Color.white)
                 
@@ -249,6 +264,9 @@ struct MeView: View {
         }
         .fullScreenCover(isPresented: $showReadingHistory) {
             ReadingHistoryView()
+        }
+        .fullScreenCover(isPresented: $showDownloadBooks) {
+            MyDownloadBooksView()
         }
         .fullScreenCover(isPresented: $showNotifications) {
             NotificationsSettingsView()

@@ -27,6 +27,8 @@ class StreamingAudioManager: NSObject, ObservableObject {
     private var isFinishedGenerating: Bool = false
     private var isStopped: Bool = false
     private var isRequestInProgress: Bool = false  // Track if API request is currently running
+    private var isPaused: Bool = false  // Track if user manually paused
+    private var voiceIdForGeneration: String = ""  // Store voice ID for resuming generation
     
     // Audio session
     private let audioSession = AVAudioSession.sharedInstance()
@@ -34,6 +36,7 @@ class StreamingAudioManager: NSObject, ObservableObject {
     // Configuration
     private let maxConcurrentRequests = 3
     private let prefetchBuffer = 2 // Keep 2 chunks ahead in queue
+    private let minimumBufferBeforePlay = 2 // Require 2 chunks ready before starting playback
     
     // MARK: - Public Methods
     
@@ -50,6 +53,7 @@ class StreamingAudioManager: NSObject, ObservableObject {
         // Split text into paragraphs
         textChunks = splitIntoParagraphs(text)
         totalChunks = textChunks.count
+        voiceIdForGeneration = voiceId
         
         guard !textChunks.isEmpty else {
             errorMessage = "No content to play"
@@ -57,11 +61,13 @@ class StreamingAudioManager: NSObject, ObservableObject {
         }
         
         print("📝 Split into \(textChunks.count) paragraph chunks")
+        print("🎯 Starting continuous generation (will stop only if user pauses)")
         
         isGenerating = true
         isStopped = false
+        isPaused = false
         
-        // Start generation task
+        // Start generation task - generate ALL chunks continuously
         generationTask = Task {
             await generateAndPlayChunks(voiceId: voiceId)
         }
@@ -71,16 +77,62 @@ class StreamingAudioManager: NSObject, ObservableObject {
     func pause() {
         currentPlayer?.pause()
         isPlaying = false
-        print("⏸️ Paused playback")
+        isPaused = true
+        
+        // Cancel ongoing generation to save API costs
+        print("⏸️ Paused playback - stopping generation to save API costs")
+        generationTask?.cancel()
+        generationTask = nil
+        isGenerating = false
     }
     
     /// Resume playback
     func resume() {
+        isPaused = false
+        
+        // For resume, we need at least 2 chunks (current + next) or 3 if starting fresh
+        let requiredBuffer = (currentChunkIndex == 0) ? 3 : minimumBufferBeforePlay
+        let needsBuffering = audioQueue.count < requiredBuffer && !isFinishedGenerating
+        
+        // Resume generation if not finished
+        if !isFinishedGenerating && !isGenerating {
+            let nextChunkToGenerate = currentChunkIndex + audioQueue.count
+            if nextChunkToGenerate < textChunks.count {
+                if needsBuffering {
+                    let chunksNeeded = requiredBuffer - audioQueue.count
+                    print("🔄 Resuming generation from chunk \(nextChunkToGenerate + 1) (need \(chunksNeeded) chunk(s) for buffer, then continue)")
+                } else {
+                    print("🔄 Resuming generation from chunk \(nextChunkToGenerate + 1) (continuous generation)")
+                }
+                isGenerating = true
+                generationTask = Task {
+                    // Always generate all remaining chunks, but playback will wait for buffer
+                    await generateAndPlayChunks(voiceId: voiceIdForGeneration, startFromChunk: nextChunkToGenerate)
+                }
+            }
+        }
+        
+        // If we need buffering and no player is active, wait for chunks
+        if needsBuffering && currentPlayer == nil {
+            print("⏸️ Waiting for \(requiredBuffer) chunks to be ready before resuming...")
+            return
+        }
+        
         guard let player = currentPlayer else {
-            // If no current player but we have queued audio, play next
-            if !audioQueue.isEmpty {
+            // If no current player but we have enough queued audio, play next
+            if audioQueue.count >= requiredBuffer || isFinishedGenerating {
                 playNextChunk()
             }
+            return
+        }
+        
+        // Ensure audio session is active before resuming
+        do {
+            try audioSession.setCategory(.playback, mode: .default)
+            try audioSession.setActive(true)
+        } catch {
+            print("❌ Failed to activate audio session: \(error.localizedDescription)")
+            errorMessage = "Failed to resume audio"
             return
         }
         
@@ -148,15 +200,22 @@ class StreamingAudioManager: NSObject, ObservableObject {
         isFinishedGenerating = false
         isStopped = false  // Reset stopped flag for new playback
         isRequestInProgress = false  // Reset request tracking
+        isPaused = false
+        voiceIdForGeneration = ""
         currentTime = 0
         duration = 0
     }
     
-    private func generateAndPlayChunks(voiceId: String) async {
-        var generatedChunks = 0
+    private func generateAndPlayChunks(voiceId: String, maxChunks: Int? = nil, startFromChunk: Int = 0) async {
         var failedChunks = 0
         
-        for (index, chunk) in textChunks.enumerated() {
+        let chunksToGenerate = maxChunks ?? (textChunks.count - startFromChunk)
+        let endIndex = min(startFromChunk + chunksToGenerate, textChunks.count)
+        
+        print("📊 Generating chunks \(startFromChunk + 1) to \(endIndex) (total: \(textChunks.count))")
+        
+        for index in startFromChunk..<endIndex {
+            let chunk = textChunks[index]
             // Check if stopped BEFORE starting any work
             if isStopped {
                 print("🛑 Generation stopped by user (before chunk \(index + 1))")
@@ -166,9 +225,9 @@ class StreamingAudioManager: NSObject, ObservableObject {
                 return
             }
             
-            // Check if task is cancelled
+            // Check if task is cancelled (user paused)
             if Task.isCancelled {
-                print("🛑 Generation task cancelled (before chunk \(index + 1))")
+                print("⏸️ Generation cancelled by user pause (at chunk \(index + 1))")
                 await MainActor.run {
                     isGenerating = false
                 }
@@ -229,20 +288,32 @@ class StreamingAudioManager: NSObject, ObservableObject {
                 await MainActor.run {
                     // Add to queue
                     audioQueue.append(audioData)
-                    generatedChunks += 1
                     
-                    // Update progress
-                    progress = Double(generatedChunks) / Double(totalChunks)
+                    // Update progress based on currentChunkIndex + queue size
+                    let totalGenerated = currentChunkIndex + audioQueue.count
+                    progress = Double(totalGenerated) / Double(totalChunks)
                     
-                    // If this is the first chunk, start playing immediately
-                    if generatedChunks == 1 && !isPlaying {
-                        print("🎵 Playing first chunk immediately")
+                    print("📦 Generated chunk \(index + 1), Queue now has \(audioQueue.count) chunk(s), currentChunkIndex=\(currentChunkIndex), isPlaying=\(isPlaying)")
+                    
+                    // Check if we should start/resume playing
+                    // For initial playback (currentChunkIndex == 0), need 3 chunks so after playing chunk 1, we have 2 left
+                    // For resume after buffering (currentChunkIndex > 0), need 2 chunks
+                    let requiredBuffer = (currentChunkIndex == 0) ? 3 : minimumBufferBeforePlay
+                    
+                    if !isPlaying && audioQueue.count >= requiredBuffer && currentChunkIndex == 0 {
+                        print("🎵 Initial buffer ready (\(audioQueue.count) chunks in queue, need \(requiredBuffer)), attempting to start playback...")
                         playNextChunk()
+                    } else if !isPlaying && audioQueue.count >= minimumBufferBeforePlay && currentChunkIndex > 0 {
+                        // Resume after buffering pause
+                        print("🎵 Buffer refilled (\(audioQueue.count) chunks in queue), attempting to resume playback...")
+                        playNextChunk()
+                    } else {
+                        print("⏳ Not starting playback yet: isPlaying=\(isPlaying), queueCount=\(audioQueue.count), currentChunkIndex=\(currentChunkIndex), need \(requiredBuffer) chunks")
                     }
                 }
                 
-                // Small delay to avoid rate limiting
-                if index < textChunks.count - 1 {
+                // Small delay to avoid rate limiting (only if not the last chunk we're generating)
+                if index < endIndex - 1 {
                     // CRITICAL: Check stop before sleeping
                     guard !isStopped && !Task.isCancelled else {
                         print("🛑 BLOCKED: Stop detected before sleep")
@@ -293,13 +364,48 @@ class StreamingAudioManager: NSObject, ObservableObject {
         }
         
         await MainActor.run {
-            isFinishedGenerating = true
+            // Check if we've generated all chunks
+            if endIndex >= textChunks.count {
+                isFinishedGenerating = true
+                print("✅ Finished generating ALL chunks (generated up to chunk \(endIndex))")
+            } else {
+                print("⏸️ Generated chunks up to \(endIndex). Will resume generation when needed.")
+            }
             isGenerating = false
-            print("✅ Finished generating all chunks. Success: \(generatedChunks)/\(textChunks.count)")
         }
     }
     
     private func playNextChunk() {
+        print("🔍 playNextChunk called: queue=\(audioQueue.count), currentChunkIndex=\(currentChunkIndex), isPlaying=\(isPlaying), isFinished=\(isFinishedGenerating)")
+        
+        // Check buffer requirement:
+        // - Need at least 2 chunks to play (ensures next chunk is ready)
+        // - UNLESS generation is finished (then play remaining chunks)
+        let hasMinimumBuffer = audioQueue.count >= 2 || isFinishedGenerating
+        
+        print("   Buffer check: hasMinimumBuffer=\(hasMinimumBuffer), queueCount=\(audioQueue.count), minimumRequired=\(minimumBufferBeforePlay)")
+        
+        if !hasMinimumBuffer {
+            print("❌ BLOCKED: Waiting for buffer: only \(audioQueue.count) chunk(s) in queue, need at least 2")
+            
+            // CRITICAL: Set isPlaying to false so buffer refill can trigger playback
+            isPlaying = false
+            print("   ⏸️ Set isPlaying=false to wait for buffer refill")
+            
+            // Resume generation if not currently generating
+            if !isGenerating && !isPaused && !isStopped {
+                let nextChunkToGenerate = currentChunkIndex + audioQueue.count
+                if nextChunkToGenerate < textChunks.count {
+                    print("🔄 Buffering: resuming generation from chunk \(nextChunkToGenerate + 1)")
+                    isGenerating = true
+                    generationTask = Task {
+                        await generateAndPlayChunks(voiceId: voiceIdForGeneration, startFromChunk: nextChunkToGenerate)
+                    }
+                }
+            }
+            return
+        }
+        
         guard !audioQueue.isEmpty else {
             print("⚠️ No chunks in queue to play")
             
@@ -312,7 +418,17 @@ class StreamingAudioManager: NSObject, ObservableObject {
             return
         }
         
+        // Log buffer status BEFORE removing chunk
+        print("✅ Buffer check passed. About to play chunk \(currentChunkIndex + 1)")
+        if isFinishedGenerating && audioQueue.count < 2 {
+            print("   📢 Playing remaining chunk (generation complete, \(audioQueue.count) left in queue)")
+        } else {
+            print("   ▶️ Playing with good buffer: \(audioQueue.count) chunk(s) in queue before removal")
+        }
+        
         let audioData = audioQueue.removeFirst()
+        print("   🎬 Removed chunk from queue, queue now has \(audioQueue.count) chunk(s) remaining")
+        
         currentChunkIndex += 1
         
         do {
@@ -338,7 +454,7 @@ class StreamingAudioManager: NSObject, ObservableObject {
             currentTime = player.currentTime
             duration = player.duration
             
-            print("▶️ Playing chunk \(currentChunkIndex)/\(totalChunks) (duration: \(duration)s)")
+            print("🎵 NOW PLAYING chunk \(currentChunkIndex)/\(totalChunks) (duration: \(duration)s, \(audioQueue.count) chunk(s) remaining in buffer)")
             
         } catch {
             print("❌ Failed to play chunk: \(error.localizedDescription)")
@@ -440,13 +556,15 @@ class StreamingAudioManager: NSObject, ObservableObject {
 extension StreamingAudioManager: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in
-            print("✅ Chunk finished playing successfully: \(flag)")
+            print("✅ Chunk \(currentChunkIndex) finished playing successfully: \(flag)")
+            print("   Queue state: \(audioQueue.count) chunk(s) in queue, isFinishedGenerating=\(isFinishedGenerating)")
             
             // Clean up temp file
             try? FileManager.default.removeItem(at: player.url!)
             
             // Play next chunk if available
             if !audioQueue.isEmpty || !isFinishedGenerating {
+                print("   ⏭️ Preparing to play next chunk...")
                 // Small delay before next chunk for smooth transition
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                 playNextChunk()

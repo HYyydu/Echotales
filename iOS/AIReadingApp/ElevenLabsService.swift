@@ -3,10 +3,18 @@ import Foundation
 class ElevenLabsService {
     static let shared = ElevenLabsService()
     
-    private let apiKey = "YourAPI"
-    private let baseURL = "https://api.elevenlabs.io/v1"
+    private let apiKey: String
+    private let baseURL: String
     
-    private init() {}
+    private init() {
+        // Load API key securely from Config.plist
+        self.apiKey = Config.shared.elevenLabsAPIKey
+        self.baseURL = Config.shared.elevenLabsBaseURL
+        
+        if apiKey.isEmpty {
+            print("⚠️ WARNING: ElevenLabs API key is empty. Please configure Config.plist")
+        }
+    }
     
     // Create voice clone from audio file
     func createVoiceClone(audioURL: URL, name: String) async throws -> String {

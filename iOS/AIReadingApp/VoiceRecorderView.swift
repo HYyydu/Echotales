@@ -5,6 +5,7 @@ struct VoiceRecorderView: View {
     @StateObject private var recorder = AudioRecorderManager()
     @State private var isRecording = false
     @State private var isFinished = false
+    @State private var showNamingView = false
     @State private var isPlaying = false
     @State private var recordingTime: TimeInterval = 0
     @State private var audioLevels: [CGFloat] = Array(repeating: 4, count: 40)
@@ -34,62 +35,83 @@ struct VoiceRecorderView: View {
     private let RECORDING_DURATION: TimeInterval = 30.0
     
     var body: some View {
-        VStack(spacing: 0) {
-            // App Header (positioned 60px down to clear notch/Dynamic Island)
-            AppHeaderView(
-                title: "Voice Recorder",
-                onBack: {
-                    if isRecording {
-                        stopRecording()
-                    } else if isFinished {
+        ZStack {
+            VStack(spacing: 0) {
+                // App Header (positioned 60px down to clear notch/Dynamic Island)
+                AppHeaderView(
+                    title: "Voice Recorder",
+                    onBack: {
+                        if isRecording {
+                            stopRecording()
+                        } else if isFinished {
+                            resetToInitial()
+                        }
+                    }
+                )
+                .padding(.top, 60)
+                    
+                    // Content Area
+                    ZStack {
+                        backgroundGray
+                        
+                        if isFinished {
+                            FinishedStateView(
+                                primaryPink: primaryButton,
+                                successGreen: successGreen,
+                                successGreenIcon: successGreenIcon,
+                                textPrimary: textPrimary,
+                                textSecondary: textSecondary,
+                                borderColor: borderColor,
+                                isPlaying: $isPlaying,
+                                isGeneratingAudio: isGeneratingAudio,
+                                onPlay: togglePlayback
+                            )
+                        } else if isRecording {
+                            RecordingStateView(
+                                recordingTime: recordingTime,
+                                audioLevels: audioLevels,
+                                progress: recordingTime / RECORDING_DURATION,
+                                textPrimary: textPrimary,
+                                textSecondary: textSecondary,
+                                primaryPink: primaryButton,
+                                secondaryPink: primaryButton,
+                                recordingRed: recordingRed,
+                                borderColor: progressBarBg
+                            )
+                        } else {
+                            InitialStateView(
+                                primaryPink: primaryButton,
+                                textPrimary: textPrimary,
+                                textSecondary: textSecondary,
+                                onStartRecording: startRecording
+                            )
+                        }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .background(Color.white)
+            .onAppear {
+                setupAudioLevels()
+            }
+            
+            // Naming View Overlay
+            if showNamingView, let audioURL = recordedAudioURL {
+                NameRecordingView(
+                    audioURL: audioURL,
+                    onSave: { voiceId in
+                        self.voiceId = voiceId
+                        onVoiceRecorded(voiceId)
+                        showNamingView = false
+                        isFinished = true
+                    },
+                    onCancel: {
+                        showNamingView = false
                         resetToInitial()
                     }
-                }
-            )
-            .padding(.top, 60)
-                
-                // Content Area
-                ZStack {
-                    backgroundGray
-                    
-                    if isFinished {
-                        FinishedStateView(
-                            primaryPink: primaryButton,
-                            successGreen: successGreen,
-                            successGreenIcon: successGreenIcon,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                            borderColor: borderColor,
-                            isPlaying: $isPlaying,
-                            isGeneratingAudio: isGeneratingAudio,
-                            onPlay: togglePlayback
-                        )
-                    } else if isRecording {
-                        RecordingStateView(
-                            recordingTime: recordingTime,
-                            audioLevels: audioLevels,
-                            progress: recordingTime / RECORDING_DURATION,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                            primaryPink: primaryButton,
-                            secondaryPink: primaryButton,
-                            recordingRed: recordingRed,
-                            borderColor: progressBarBg
-                        )
-                    } else {
-                        InitialStateView(
-                            primaryPink: primaryButton,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                            onStartRecording: startRecording
-                        )
-                    }
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(1)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .background(Color.white)
-        .onAppear {
-            setupAudioLevels()
         }
     }
     
@@ -152,41 +174,77 @@ struct VoiceRecorderView: View {
         let recordingRed: Color
         let borderColor: Color
         
+        @State private var isTextExpanded = false
+        
+        // Snow White text (about 30s of reading)
+        let readAloudText = """
+Once upon a time, there lived a beautiful princess named Snow White. Her wicked stepmother became jealous of her beauty and ordered a huntsman to take her into the forest. Snow White wandered through the woods and found a cottage belonging to seven dwarfs.
+"""
+        
         var body: some View {
             VStack(spacing: 0) {
                 Spacer()
                 
                 VStack(spacing: 0) {
-                    // Instruction: text-lg (18px), tracking-wider, mb-10 (40px)
-                    Text("PLEASE KEEP SAY SOMETHING FOR 30S")
-                        .font(.system(size: 18, weight: .regular))
-                        .tracking(3)
-                        .foregroundColor(textPrimary)
-                        .padding(.bottom, 40)
-                    
-                    // Timer: text-6xl (60px), font-mono, tracking-wide, mb-14 (56px)
-                    VStack(spacing: 0) {
-                        Text(VoiceRecorderView.formatTime(recordingTime))
-                            .font(.system(size: 60, design: .monospaced))
-                            .tracking(2)
-                            .monospacedDigit()
-                            .foregroundColor(textPrimary)
-                        
-                        // Recording Indicator: mt-6 (24px), gap-2
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(recordingRed)
-                                .frame(width: 16, height: 16)
-                                .opacity(1.0)
-                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: true)
+                    // Read Aloud Card
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text("Read aloud:")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(textPrimary)
                             
-                            Text("Recording")
-                                .font(.system(size: 16))
-                                .foregroundColor(textSecondary)
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation {
+                                    isTextExpanded.toggle()
+                                }
+                            }) {
+                                Image(systemName: isTextExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(textSecondary)
+                            }
                         }
-                        .padding(.top, 24)
+                        .padding(.bottom, 12)
+                        
+                        Text(readAloudText)
+                            .font(.system(size: 15))
+                            .foregroundColor(textSecondary)
+                            .lineSpacing(4)
+                            .lineLimit(isTextExpanded ? nil : 3)
+                            .padding(.bottom, 12)
+                        
+                        if !isTextExpanded {
+                            Text("Tap to expand")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "9CA3AF"))
+                        }
                     }
-                    .padding(.bottom, 56)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(hex: "F3F4F6"))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 32)
+                    .onTapGesture {
+                        withAnimation {
+                            isTextExpanded.toggle()
+                        }
+                    }
+                    
+                    // Recording Indicator
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(recordingRed)
+                            .frame(width: 16, height: 16)
+                            .opacity(1.0)
+                            .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: true)
+                        
+                        Text("Recording")
+                            .font(.system(size: 16))
+                            .foregroundColor(textSecondary)
+                    }
+                    .padding(.bottom, 32)
                     
                     // Waveform: h-32 (128px), 40 bars, 4px width
                     WaveformView(audioLevels: audioLevels, primaryPink: primaryPink)
@@ -394,38 +452,18 @@ struct VoiceRecorderView: View {
         
         if let url = recorder.stopRecording() {
             recordedAudioURL = url
-            processVoiceRecording()
-        }
-        
-        isRecording = false
-        isFinished = true
-    }
-    
-    private func processVoiceRecording() {
-        guard let audioURL = recordedAudioURL else { return }
-        
-        Task {
-            do {
-                let id = try await ElevenLabsService.shared.createVoiceClone(
-                    audioURL: audioURL,
-                    name: "My Voice Clone"
-                )
-                
-                await MainActor.run {
-                    voiceId = id
-                    onVoiceRecorded(id)
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                }
-            }
+            // Show naming view
+            isRecording = false
+            showNamingView = true
+        } else {
+            isRecording = false
         }
     }
     
     private func resetToInitial() {
         isFinished = false
         isRecording = false
+        showNamingView = false
         recordingTime = 0
         audioLevels = Array(repeating: 4, count: 40)
         recordedAudioURL = nil

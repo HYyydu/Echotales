@@ -4,6 +4,7 @@ import FirebaseAuth
 struct SignUpView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authManager: AuthenticationManager
+    @State private var name = ""
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
@@ -43,6 +44,24 @@ struct SignUpView: View {
                     
                     // Form Fields
                     VStack(spacing: 16) {
+                        // Name Field
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Name")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Color(hex: "374151"))
+                            
+                            TextField("Enter your name", text: $name)
+                                .textInputAutocapitalization(.words)
+                                .autocorrectionDisabled()
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color(hex: "E5E7EB"), lineWidth: 1)
+                                )
+                        }
+                        
                         // Email Field
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Email")
@@ -193,7 +212,7 @@ struct SignUpView: View {
         errorMessage = ""
         
         // Validation
-        guard !email.isEmpty, !password.isEmpty, !confirmPassword.isEmpty else {
+        guard !name.isEmpty, !email.isEmpty, !password.isEmpty, !confirmPassword.isEmpty else {
             errorMessage = "Please fill in all fields"
             return
         }
@@ -217,7 +236,7 @@ struct SignUpView: View {
         
         Task {
             do {
-                try await authManager.signUp(email: email, password: password)
+                try await authManager.signUp(email: email, password: password, name: name)
                 await MainActor.run {
                     dismiss()
                 }

@@ -1,4 +1,52 @@
 import SwiftUI
+import Foundation
+
+// MARK: - Book Model
+struct Book: Identifiable {
+    let id: String
+    let title: String
+    let author: String
+    let age: String?
+    let genre: String?
+    let coverUrl: String?
+    let tags: [String]?
+    let textContent: String?
+    let chapters: [Chapter]
+    let coverImageURL: String?
+    
+    init(id: String, title: String, author: String, age: String? = nil, genre: String? = nil, 
+         coverUrl: String? = nil, tags: [String]? = nil, textContent: String? = nil, 
+         chapters: [Chapter] = [], coverImageURL: String? = nil) {
+        self.id = id
+        self.title = title
+        self.author = author
+        self.age = age
+        self.genre = genre
+        self.coverUrl = coverUrl
+        self.tags = tags
+        self.textContent = textContent
+        self.chapters = chapters
+        self.coverImageURL = coverImageURL
+    }
+    
+    // Convenience initializer from EPUBContent
+    init(from epubContent: EPUBContent, id: String, age: String? = nil, genre: String? = nil, 
+         coverUrl: String? = nil, tags: [String]? = nil) {
+        self.id = id
+        self.title = epubContent.title
+        self.author = epubContent.author
+        self.age = age
+        self.genre = genre
+        self.coverUrl = coverUrl ?? epubContent.coverImageURL
+        self.tags = tags
+        self.textContent = nil
+        self.chapters = epubContent.chapters
+        self.coverImageURL = epubContent.coverImageURL
+    }
+}
+
+// MARK: - Chapter Type Alias
+typealias Chapter = EPUBChapter
 
 // MARK: - Color Extension for Hex Colors
 extension Color {

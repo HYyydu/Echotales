@@ -164,7 +164,7 @@ struct ReadingHistoryView: View {
                                                             coverUrl: entry.bookCoverUrl,
                                                             tags: [],
                                                             textContent: nil,
-                                                            chapters: nil
+                                                            chapters: []
                                                         )
                                                         selectedBook = book
                                                         showBookDetails = true
@@ -326,40 +326,19 @@ struct HistoryEntryRow: View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 // Book Cover
-                if !entry.bookCoverUrl.isEmpty, let url = URL(string: entry.bookCoverUrl) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            Rectangle()
-                                .fill(bgGray)
-                                .frame(width: 56, height: 84)
-                                .cornerRadius(8)
-                                .overlay(ProgressView().scaleEffect(0.7))
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 56, height: 84)
-                                .clipped()
-                                .cornerRadius(8)
-                        case .failure(_):
-                            Rectangle()
-                                .fill(Color(hex: "F3F4F6"))
-                                .frame(width: 56, height: 84)
-                                .cornerRadius(8)
-                                .overlay(
-                                    Image(systemName: "book.fill")
-                                        .foregroundColor(textTertiary)
-                                )
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
+                if !entry.bookCoverUrl.isEmpty {
+                    BookCoverImage(coverUrl: entry.bookCoverUrl)
+                        .frame(width: 56, height: 84)
+                        .clipped()
                 } else {
                     Rectangle()
                         .fill(bgGray)
                         .frame(width: 56, height: 84)
                         .cornerRadius(8)
+                        .overlay(
+                            Image(systemName: "book.fill")
+                                .foregroundColor(textTertiary)
+                        )
                 }
                 
                 // Book Info

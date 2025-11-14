@@ -319,16 +319,16 @@ struct EnhancedBookCard: View {
             GeometryReader { geometry in
                 ZStack(alignment: .topTrailing) {
                     // Cover image logic
-                    if !book.coverUrl.isEmpty {
+                    if let coverUrl = book.coverUrl, !coverUrl.isEmpty {
                         if isBundled {
                             // Try loading from file path first (cached EPUB covers)
-                            if let image = UIImage(contentsOfFile: book.coverUrl) {
+                            if let image = UIImage(contentsOfFile: coverUrl) {
                                 Image(uiImage: image)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: geometry.size.width, height: geometry.size.height)
                                     .clipped()
-                            } else if let image = UIImage(named: book.coverUrl) {
+                            } else if let coverUrl = book.coverUrl, let image = UIImage(named: coverUrl) {
                                 // Fallback to Assets bundle
                                 Image(uiImage: image)
                                     .resizable()
@@ -350,7 +350,7 @@ struct EnhancedBookCard: View {
                                         }
                                     )
                             }
-                        } else if let url = URL(string: book.coverUrl) {
+                        } else if let url = URL(string: book.coverUrl!) {
                             // Firebase book URL
                             AsyncImage(url: url) { phase in
                                 switch phase {
@@ -391,8 +391,8 @@ struct EnhancedBookCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 6)
                 
-                if !book.tags.isEmpty {
-                    Text(book.tags.first ?? "")
+                if let tags = book.tags, !tags.isEmpty {
+                    Text(tags.first ?? "")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(tagText)
                         .padding(.horizontal, 8)
@@ -422,7 +422,7 @@ struct BookCard: View {
             GeometryReader { geometry in
                 ZStack(alignment: .topTrailing) {
                     // Load actual cover image or show colored placeholder
-                    if !book.coverUrl.isEmpty, let url = URL(string: book.coverUrl) {
+                    if let coverUrl = book.coverUrl, !coverUrl.isEmpty, let url = URL(string: coverUrl) {
                         AsyncImage(url: url) { phase in
                             switch phase {
                             case .empty:
@@ -471,8 +471,8 @@ struct BookCard: View {
                     .padding(.bottom, 6)
                 
                 // Tag
-                if !book.tags.isEmpty {
-                    Text(book.tags.first ?? "")
+                if let tags = book.tags, !tags.isEmpty {
+                    Text(tags.first ?? "")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(tagText)
                         .padding(.horizontal, 8)
@@ -864,13 +864,7 @@ struct CloudBookDetailsLoader: View {
                         coverUrl: cloudBook.coverImageUrl ?? "",
                         tags: cloudBook.tags,
                         textContent: nil,
-                        chapters: content.chapters.map { epubChapter in
-                            Chapter(
-                                id: epubChapter.id,
-                                title: epubChapter.title,
-                                content: epubChapter.content
-                            )
-                        }
+                        chapters: content.chapters
                     ),
                     voiceId: voiceId,
                     cloudMetadata: cloudBook
@@ -1046,13 +1040,7 @@ struct CloudBookCardCompact: View {
                         coverUrl: book.coverImageUrl ?? "",
                         tags: book.tags,
                         textContent: nil,
-                        chapters: content.chapters.map { epubChapter in
-                            Chapter(
-                                id: epubChapter.id,
-                                title: epubChapter.title,
-                                content: epubChapter.content
-                            )
-                        }
+                        chapters: content.chapters
                     ),
                     voiceId: voiceId,
                     cloudMetadata: book // Pass cloud metadata for "Save for Offline" feature

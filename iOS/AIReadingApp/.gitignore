@@ -1,5 +1,6 @@
 # API Keys and Sensitive Configuration
 Config.plist
+GoogleService-Info.plist
 
 # Xcode
 *.xcodeproj/*

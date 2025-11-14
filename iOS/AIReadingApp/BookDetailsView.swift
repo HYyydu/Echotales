@@ -65,8 +65,8 @@ struct BookDetailsView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // Book Cover - handles both local files and remote URLs
-                    if !book.coverUrl.isEmpty {
-                        BookCoverImage(coverUrl: book.coverUrl)
+                    if let coverUrl = book.coverUrl, !coverUrl.isEmpty {
+                        BookCoverImage(coverUrl: coverUrl)
                             .frame(width: 200, height: 300)
                     }
                         
@@ -82,15 +82,15 @@ struct BookDetailsView: View {
                                 .foregroundColor(textSecondary)
                             
                             HStack(spacing: 8) {
-                                if let chapters = book.chapters {
-                                    Text("\(chapters.count) Chapters")
+                                if !book.chapters.isEmpty {
+                                    Text("\(book.chapters.count) Chapters")
                                         .font(.system(size: 14))
                                         .foregroundColor(textTertiary)
                                     
                                     Text("•")
                                         .foregroundColor(textTertiary)
                                     
-                                    Text("~\(estimatedReadingTime(chapters: chapters)) hours")
+                                    Text("~\(estimatedReadingTime(chapters: book.chapters)) hours")
                                         .font(.system(size: 14))
                                         .foregroundColor(textTertiary)
                                 } else if book.textContent != nil {
@@ -103,7 +103,7 @@ struct BookDetailsView: View {
                         .padding(.horizontal, 24)
                         
                         // Chapter Selector Button (for full book without chapters)
-                        if book.chapters == nil || book.chapters?.isEmpty == true {
+                        if book.chapters.isEmpty {
                             Button(action: {
                                 showChapterCreator = true
                             }) {
@@ -130,7 +130,7 @@ struct BookDetailsView: View {
                         }
                         
                         // Chapter Selector (if chapters exist)
-                        if let chapters = book.chapters, !chapters.isEmpty {
+                        if !book.chapters.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Selected Chapter")
                                     .font(.system(size: 12))
@@ -140,11 +140,11 @@ struct BookDetailsView: View {
                                 Button(action: { showChapterPicker = true }) {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text(selectedChapter?.title ?? chapters[0].title)
+                                            Text(selectedChapter?.title ?? book.chapters[0].title)
                                                 .font(.system(size: 16, weight: .semibold))
                                                 .foregroundColor(textPrimary)
                                             
-                                            Text("\(estimatedChapterMinutes(content: selectedChapter?.content ?? chapters[0].content)) min")
+                                            Text("\(estimatedChapterMinutes(content: selectedChapter?.content ?? book.chapters[0].content)) min")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(textSecondary)
                                         }
@@ -315,9 +315,9 @@ struct BookDetailsView: View {
                 }
             }
             .sheet(isPresented: $showChapterPicker) {
-                if let chapters = book.chapters {
+                if !book.chapters.isEmpty {
                     ChapterPickerView(
-                        chapters: chapters,
+                        chapters: book.chapters,
                         selectedChapter: $selectedChapter,
                         primaryPink: primaryPink,
                         secondaryPink: secondaryPink,
@@ -376,8 +376,8 @@ struct BookDetailsView: View {
             }
             .onAppear {
                 // Set default chapter if available
-                if let chapters = book.chapters, !chapters.isEmpty, selectedChapter == nil {
-                    selectedChapter = chapters[0]
+                if !book.chapters.isEmpty, selectedChapter == nil {
+                    selectedChapter = book.chapters[0]
                 }
                 // Check if book is favorited
                 checkIfFavorited()
@@ -884,7 +884,8 @@ struct ChapterCreatorView: View {
             chapters.append(Chapter(
                 id: UUID().uuidString,
                 title: division.title,
-                content: content
+                content: content,
+                order: index
             ))
         }
         
@@ -961,14 +962,13 @@ struct TextReaderView: View {
                                                 Text(chapter.title)
                                                     .font(.system(size: 28, weight: .bold))
                                                     .foregroundColor(textPrimary)
-                                                    .padding(.bottom, 4)
+                                                    .padding(.bottom, 8)
                                             } else {
                                                 Text(book.title)
                                                     .font(.system(size: 28, weight: .bold))
                                                     .foregroundColor(textPrimary)
-                                                    .padding(.bottom, 4)
+                                                    .padding(.bottom, 8)
                                             }
-                                            Divider().padding(.bottom, 12)
                                         }
                                         
                                         Text(pages[index])
@@ -981,7 +981,7 @@ struct TextReaderView: View {
                                         Spacer(minLength: 0)
                                     }
                                     .padding(.horizontal, 32)
-                                    .padding(.top, 24)
+                                    .padding(.top, 80)
                                 }
                                 .contentMargins(.bottom, max(24, geo.safeAreaInsets.bottom + 8), for: .scrollContent)
                                 .scrollIndicators(.hidden)
@@ -1302,8 +1302,8 @@ struct TextReaderView: View {
         let rawContent: String
         if let chapter = selectedChapter {
             rawContent = chapter.content
-        } else if let chapters = book.chapters, !chapters.isEmpty {
-            rawContent = chapters[0].content
+        } else if !book.chapters.isEmpty {
+            rawContent = book.chapters[0].content
         } else if let content = book.textContent {
             rawContent = content
         } else {
@@ -1315,81 +1315,71 @@ struct TextReaderView: View {
     }
     
     /// Remove duplicate chapter title from the beginning of content
-    /// Checks if the first paragraph exactly matches the chapter name and removes it
+    /// Checks if the first lines match the chapter name and removes all duplicates
     private func removeDuplicateChapterTitle(from text: String) -> String {
         guard let chapter = selectedChapter else { return text }
         
-        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let chapterTitle = chapter.title.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Split by double newlines to get paragraphs
-        let paragraphs = trimmedText.components(separatedBy: "\n\n")
-        guard let firstParagraph = paragraphs.first else { return text }
-        
-        let firstParagraphTrimmed = firstParagraph.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Check if first paragraph exactly matches the chapter title (case-insensitive)
-        if firstParagraphTrimmed.lowercased() == chapterTitle.lowercased() {
-            // Remove the first paragraph and rejoin the rest
-            let remainingParagraphs = paragraphs.dropFirst()
-            return remainingParagraphs.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        
-        // Also check for common chapter heading patterns in the first line of first paragraph
-        let lines = firstParagraph.components(separatedBy: .newlines)
-        guard let firstLine = lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) else {
-            return text
-        }
-        
-        // Check if first line exactly matches chapter title (case-insensitive)
-        if firstLine.lowercased() == chapterTitle.lowercased() {
-            // Remove first line from first paragraph
-            let remainingLines = lines.dropFirst()
-            let modifiedFirstParagraph = remainingLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        // Repeatedly remove duplicate chapter titles from the beginning until none are found
+        var didRemove = true
+        while didRemove {
+            didRemove = false
             
-            // If there's remaining content in first paragraph, keep it
-            if !modifiedFirstParagraph.isEmpty {
-                var modifiedParagraphs = paragraphs
-                modifiedParagraphs[0] = modifiedFirstParagraph
-                return modifiedParagraphs.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
-            } else {
-                // Otherwise remove entire first paragraph
-                let remainingParagraphs = paragraphs.dropFirst()
-                return remainingParagraphs.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-        
-        // Check if first line looks like a chapter heading pattern
-        let chapterPatterns = [
-            "^CHAPTER\\s+\\d+",
-            "^Chapter\\s+\\d+",
-            "^CHAPTER\\s+[IVXLCDM]+",
-            "^Chapter\\s+[IVXLCDM]+",
-            "^\\d+\\.",
-            "^[IVXLCDM]+\\."
-        ]
-        
-        for pattern in chapterPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []),
-               regex.firstMatch(in: firstLine, range: NSRange(firstLine.startIndex..., in: firstLine)) != nil {
-                // Remove the first line and return the rest
-                let remainingLines = lines.dropFirst()
-                let modifiedFirstParagraph = remainingLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            // Split by any combination of newlines to get lines
+            let lines = trimmedText.components(separatedBy: .newlines)
+            guard !lines.isEmpty else { return trimmedText }
+            
+            // Check first non-empty line
+            for (index, line) in lines.enumerated() {
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 
-                // If there's remaining content in first paragraph, keep it
-                if !modifiedFirstParagraph.isEmpty {
-                    var modifiedParagraphs = paragraphs
-                    modifiedParagraphs[0] = modifiedFirstParagraph
-                    return modifiedParagraphs.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
-                } else {
-                    // Otherwise remove entire first paragraph
-                    let remainingParagraphs = paragraphs.dropFirst()
-                    return remainingParagraphs.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                // Skip empty lines
+                if trimmedLine.isEmpty {
+                    continue
                 }
+                
+                // Check if line matches chapter title (case-insensitive)
+                if trimmedLine.lowercased() == chapterTitle.lowercased() {
+                    // Remove this line
+                    let remainingLines = lines.dropFirst(index + 1)
+                    trimmedText = remainingLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                    didRemove = true
+                    break
+                }
+                
+                // Check common chapter heading patterns
+                let chapterPatterns = [
+                    "^CHAPTER\\s+\\d+\\s*$",
+                    "^Chapter\\s+\\d+\\s*$",
+                    "^CHAPTER\\s+[IVXLCDM]+\\s*$",
+                    "^Chapter\\s+[IVXLCDM]+\\s*$",
+                    "^[IVXLCDM]+\\.?\\s*$",  // Roman numerals with optional period
+                    "^\\d+\\.?\\s*$"          // Numbers with optional period
+                ]
+                
+                for pattern in chapterPatterns {
+                    if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+                       regex.firstMatch(in: trimmedLine, range: NSRange(trimmedLine.startIndex..., in: trimmedLine)) != nil {
+                        // Remove this line
+                        let remainingLines = lines.dropFirst(index + 1)
+                        trimmedText = remainingLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                        didRemove = true
+                        break
+                    }
+                }
+                
+                if didRemove {
+                    break
+                }
+                
+                // If we found a non-empty line that doesn't match, stop searching
+                break
             }
         }
         
-        return text
+        return trimmedText
     }
     
     private func generatePages() {
@@ -1732,24 +1722,17 @@ struct AudioPlayerView: View {
                 Spacer()
                     .frame(height: 20)
                 
-                // Book Cover
-                if !book.coverUrl.isEmpty, let url = URL(string: book.coverUrl) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 280)
-                                .cornerRadius(20)
-                                .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
-                        default:
-                            Rectangle()
-                                .fill(Color(hex: "E5E7EB"))
-                                .frame(width: 280, height: 420)
-                                .cornerRadius(20)
-                        }
-                    }
+                // Book Cover - using BookCoverImage to handle all URL types
+                if let coverUrl = book.coverUrl, !coverUrl.isEmpty {
+                    BookCoverImage(coverUrl: coverUrl)
+                        .frame(width: 280, height: 420)
+                        .cornerRadius(20)
+                        .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+                } else {
+                    Rectangle()
+                        .fill(Color(hex: "E5E7EB"))
+                        .frame(width: 280, height: 420)
+                        .cornerRadius(20)
                 }
                 
                 Spacer()
@@ -1781,12 +1764,11 @@ struct AudioPlayerView: View {
                 .padding(.horizontal, 32)
                 
                 Spacer()
-                    .frame(height: 20)
+                    .frame(height: 60)
                 
-                // Progress Section
+                // Playback Controls Section
                 VStack(spacing: 16) {
                     // ONLY show loading if we haven't started playing yet
-                    // Once audio has started, always show controls even if generating in background
                     if streamingManager.isGenerating && !streamingManager.isPlaying && streamingManager.currentChunkIndex == 0 {
                         // Initial loading state - waiting for first chunk
                         VStack(spacing: 12) {
@@ -1800,36 +1782,6 @@ struct AudioPlayerView: View {
                         }
                         .padding(.vertical, 20)
                     } else {
-                        // Progress Bar
-                        VStack(spacing: 8) {
-                            GeometryReader { geometry in
-                                ZStack(alignment: .leading) {
-                                    Rectangle()
-                                        .fill(Color(hex: "E5E7EB"))
-                                        .frame(height: 4)
-                                        .cornerRadius(2)
-                                    
-                                    Rectangle()
-                                        .fill(secondaryPink)
-                                        .frame(width: streamingManager.duration > 0 ? geometry.size.width * (streamingManager.currentTime / streamingManager.duration) : 0, height: 4)
-                                        .cornerRadius(2)
-                                }
-                            }
-                            .frame(height: 4)
-                            
-                            HStack {
-                                Text(formatTime(streamingManager.currentTime))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(textTertiary)
-                                
-                                Spacer()
-                                
-                                Text(formatTime(streamingManager.duration))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(textTertiary)
-                            }
-                        }
-                        
                         // Playback Controls
                         HStack(spacing: 48) {
                             // Rewind Button
@@ -1862,11 +1814,10 @@ struct AudioPlayerView: View {
                                     .foregroundColor(textPrimary)
                             }
                         }
-                        .padding(.top, 16)
                     }
                 }
                 .padding(.horizontal, 32)
-                .padding(.bottom, 30)
+                .padding(.bottom, 60)
                 
                 if let error = errorMessage ?? streamingManager.errorMessage {
                     Text(error)
@@ -1896,9 +1847,11 @@ struct AudioPlayerView: View {
         if let chapter = selectedChapter {
             rawContent = chapter.content
             print("📖 Using chapter content: \(chapter.title)")
-        } else if let chapters = book.chapters, !chapters.isEmpty {
-            rawContent = chapters[0].content
+            print("📏 Chapter content length: \(chapter.content.count) characters")
+        } else if !book.chapters.isEmpty {
+            rawContent = book.chapters[0].content
             print("📖 Using first chapter content")
+            print("📏 Chapter content length: \(book.chapters[0].content.count) characters")
         } else if let content = book.textContent {
             rawContent = content
             print("📖 Using book text content")
@@ -1909,6 +1862,8 @@ struct AudioPlayerView: View {
         
         // Remove duplicate chapter title from content
         let textContent = removeDuplicateChapterTitleInAudio(from: rawContent)
+        
+        print("✅ Final content length: \(textContent.count) characters")
         
         // Start streaming audio
         Task { @MainActor in
@@ -2099,8 +2054,8 @@ struct AudioPlayerView: View {
     
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            // Update current playback time from the audio player
-            streamingManager.updateTime()
+            // Timer used for tracking session listening time
+            // No need to update display time since we removed the time UI
         }
     }
     
@@ -2109,11 +2064,6 @@ struct AudioPlayerView: View {
         timer = nil
     }
     
-    private func formatTime(_ time: TimeInterval) -> String {
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
 }
 
 // MARK: - Book Audio Player Delegate
@@ -2304,12 +2254,33 @@ struct BookCoverImage: View {
                 }
                 
             } else if let asset = UIImage(named: s) {
-                // Asset bundle image
+                // Asset bundle image (e.g., "BookCovers/alice-wonderland.png")
                 Image(uiImage: asset)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .cornerRadius(16)
                     .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+            } else if let bundlePath = Bundle.main.path(forResource: s, ofType: nil),
+                      let image = UIImage(contentsOfFile: bundlePath) {
+                // Try loading with Bundle.main.path (alternative for bundled resources)
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .cornerRadius(16)
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+            } else if let bundleResourcePath = Bundle.main.resourcePath {
+                // Final fallback - try with full bundle resource path
+                let fullPath = (bundleResourcePath as NSString).appendingPathComponent(s)
+                if let image = UIImage(contentsOfFile: fullPath) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .cornerRadius(16)
+                        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                } else {
+                    let _ = print("⚠️ BookCoverImage: Could not load cover image as URL, file path, or asset - \(coverUrl)")
+                    placeholderCover
+                }
             } else {
                 let _ = print("⚠️ BookCoverImage: Could not load cover image as URL, file path, or asset - \(coverUrl)")
                 placeholderCover

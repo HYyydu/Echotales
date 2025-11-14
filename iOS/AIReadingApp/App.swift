@@ -15,10 +15,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct AIReadingApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var authManager = AuthenticationManager()
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(authManager)
         }
     }
 }

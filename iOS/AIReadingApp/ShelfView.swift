@@ -454,7 +454,7 @@ struct ShelfBook: Identifiable {
             coverUrl: dynamicCoverUrl ?? coverUrl ?? "book-placeholder",
             tags: tags,
             textContent: nil,
-            chapters: nil
+            chapters: []
         )
     }
 }
@@ -1634,20 +1634,15 @@ struct ShelfBookDetailsWrapper: View {
                     coverUrl: finalCoverUrl,
                     tags: cloudBook.tags,
                     textContent: nil,
-                    chapters: epubContent.chapters.map { epubChapter in
-                        Chapter(
-                            id: epubChapter.id,
-                            title: epubChapter.title,
-                            content: epubChapter.content
-                        )
-                    }
+                    chapters: epubContent.chapters,
+                    coverImageURL: finalCoverUrl
                 )
                 
                 await MainActor.run {
                     self.fullBook = book
                     self.cloudMetadata = cloudBook // Store cloud metadata for downloads
                     self.isLoading = false
-                    print("✅ ShelfBookDetailsWrapper: Successfully loaded book with \(book.chapters?.count ?? 0) chapters")
+                    print("✅ ShelfBookDetailsWrapper: Successfully loaded book with \(book.chapters.count) chapters")
                     print("   - Final Cover URL: \(finalCoverUrl)")
                 }
             } catch {
