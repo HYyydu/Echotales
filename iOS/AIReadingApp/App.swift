@@ -17,6 +17,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                    options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
     return GIDSignIn.sharedInstance.handle(url)
   }
+  
+  // Lock app to portrait orientation
+  func application(_ application: UIApplication, 
+                   supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+    return .portrait
+  }
 }
 
 
