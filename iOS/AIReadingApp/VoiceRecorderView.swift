@@ -37,19 +37,6 @@ struct VoiceRecorderView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                // App Header (positioned 60px down to clear notch/Dynamic Island)
-                AppHeaderView(
-                    title: "Voice Recorder",
-                    onBack: {
-                        if isRecording {
-                            stopRecording()
-                        } else if isFinished {
-                            resetToInitial()
-                        }
-                    }
-                )
-                .padding(.top, 60)
-                    
                     // Content Area
                     ZStack {
                         backgroundGray
@@ -155,7 +142,6 @@ struct VoiceRecorderView: View {
                     .buttonStyle(ScaleButtonStyle())
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 25)  // Shift content down by 25px
                 
                 Spacer()
             }
@@ -189,7 +175,7 @@ Once upon a time, there lived a beautiful princess named Snow White. Her wicked 
                     // Read Aloud Card
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
-                            Text("Read aloud:")
+                            Text("Sample text")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(textPrimary)
                             
@@ -282,7 +268,6 @@ Once upon a time, there lived a beautiful princess named Snow White. Her wicked 
                     .padding(.top, 40)
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 25)  // Shift content down by 25px
                 
                 Spacer()
             }
@@ -373,7 +358,6 @@ Once upon a time, there lived a beautiful princess named Snow White. Her wicked 
                     .padding(.top, 48)
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 25)  // Shift content down by 25px
                 
                 Spacer()
             }
@@ -488,39 +472,31 @@ Once upon a time, there lived a beautiful princess named Snow White. Her wicked 
         
         isGeneratingAudio = true
         
-        // Snow White story text
-        let storyText = """
-Once upon a time, in a faraway kingdom, there lived a beautiful princess named Snow White. Her skin was as white as snow, her lips as red as roses, and her hair as black as ebony.
-
-One day, her wicked stepmother, the Queen, became jealous of Snow White's beauty. The Queen ordered a huntsman to take Snow White into the forest. But the huntsman couldn't bring himself to harm the innocent princess, so he let her go free.
-
-Snow White wandered through the forest until she found a small cottage. Inside, she discovered seven little beds, seven little chairs, and seven little everything. The cottage belonged to seven dwarfs who worked in a nearby mine.
-
-When the dwarfs returned home, they found Snow White sleeping in their beds. They welcomed her and asked her to stay with them. Snow White was happy to have found a new home.
-
-But the Queen discovered that Snow White was still alive. She disguised herself as an old peddler woman and visited the cottage with a poisoned apple. When Snow White took a bite, she fell into a deep sleep.
-
-The dwarfs were heartbroken. They placed Snow White in a glass coffin and kept watch over her. One day, a handsome prince came by and saw the beautiful princess. He fell in love with her and kissed her. Snow White awoke, and the spell was broken.
-
-The prince and Snow White were married, and they lived happily ever after. The wicked Queen was never seen again, and peace returned to the kingdom.
-"""
-        
         Task {
             do {
-                // Generate speech using ElevenLabs with cloned voice
-                let audioData = try await ElevenLabsService.shared.textToSpeech(
-                    voiceId: voiceId,
-                    text: storyText
-                )
+                print("🎵 Starting playback for voice: \(voiceId)")
                 
-                // Save to temporary file
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("snow_white_\(voiceId).mp3")
-                try audioData.write(to: tempURL)
+                // Try to get cached audio first
+                let audioURL: URL
+                if AudioCacheManager.shared.hasCachedAudio(for: voiceId) {
+                    print("✅ Using cached audio")
+                    audioURL = AudioCacheManager.shared.cacheFileURL(for: voiceId)
+                } else {
+                    print("⚠️ No cache found, generating new audio...")
+                    // Generate and cache if not already cached
+                    audioURL = try await AudioCacheManager.shared.generateAndCacheSample(for: voiceId)
+                }
                 
                 await MainActor.run {
                     do {
+                        // Configure audio session for playback
+                        let audioSession = AVAudioSession.sharedInstance()
+                        try audioSession.setCategory(.playback, mode: .default)
+                        try audioSession.setActive(true)
+                        
                         // Create and play audio
-                        let player = try AVAudioPlayer(contentsOf: tempURL)
+                        let player = try AVAudioPlayer(contentsOf: audioURL)
+                        player.prepareToPlay()
                         
                         // Create delegate and store it to prevent deallocation
                         let delegate = AudioPlayerDelegate(onFinish: {
@@ -542,7 +518,7 @@ The prince and Snow White were married, and they lived happily ever after. The w
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Failed to generate speech: \(error.localizedDescription)"
+                    errorMessage = "Failed to load audio: \(error.localizedDescription)"
                     isGeneratingAudio = false
                 }
             }
@@ -563,17 +539,9 @@ The prince and Snow White were married, and they lived happily ever after. The w
 // MARK: - Supporting Views
 struct AppHeaderView: View {
     let title: String
-    let onBack: () -> Void
     
     var body: some View {
         HStack {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Color(hex: "0F172A"))
-                    .frame(width: 36, height: 36)
-            }
-            
             Spacer()
             
             Text(title)
@@ -581,10 +549,6 @@ struct AppHeaderView: View {
                 .foregroundColor(Color(hex: "0F172A"))
             
             Spacer()
-            
-            // Spacer for balance
-            Color.clear
-                .frame(width: 36, height: 36)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)

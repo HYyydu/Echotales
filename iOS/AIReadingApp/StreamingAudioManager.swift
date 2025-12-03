@@ -30,6 +30,12 @@ class StreamingAudioManager: NSObject, ObservableObject {
     private var isPaused: Bool = false  // Track if user manually paused
     private var voiceIdForGeneration: String = ""  // Store voice ID for resuming generation
     
+    // Usage tracking
+    private var usageTrackingTimer: Timer?
+    private var playbackStartTime: Date?
+    private var accumulatedPlaybackTime: TimeInterval = 0
+    private weak var membershipManager: MembershipManager?
+    
     // Audio session
     private let audioSession = AVAudioSession.sharedInstance()
     
@@ -37,6 +43,12 @@ class StreamingAudioManager: NSObject, ObservableObject {
     private let maxConcurrentRequests = 3
     private let prefetchBuffer = 2 // Keep 2 chunks ahead in queue
     private let minimumBufferBeforePlay = 2 // Require 2 chunks ready before starting playback
+    
+    // MARK: - Initializer
+    
+    func setMembershipManager(_ manager: MembershipManager) {
+        self.membershipManager = manager
+    }
     
     // MARK: - Public Methods
     
@@ -79,6 +91,9 @@ class StreamingAudioManager: NSObject, ObservableObject {
         isPlaying = false
         isPaused = true
         
+        // Stop usage tracking when paused
+        stopUsageTracking()
+        
         // Cancel ongoing generation to save API costs
         print("⏸️ Paused playback - stopping generation to save API costs")
         generationTask?.cancel()
@@ -90,8 +105,8 @@ class StreamingAudioManager: NSObject, ObservableObject {
     func resume() {
         isPaused = false
         
-        // For resume, we need at least 2 chunks (current + next) or 3 if starting fresh
-        let requiredBuffer = (currentChunkIndex == 0) ? 3 : minimumBufferBeforePlay
+        // Need at least 2 chunks for smooth playback
+        let requiredBuffer = minimumBufferBeforePlay
         let needsBuffering = audioQueue.count < requiredBuffer && !isFinishedGenerating
         
         // Resume generation if not finished
@@ -138,12 +153,19 @@ class StreamingAudioManager: NSObject, ObservableObject {
         
         player.play()
         isPlaying = true
+        
+        // Resume usage tracking
+        startUsageTracking()
+        
         print("▶️ Resumed playback")
     }
     
     /// Stop all generation and playback
     func stop() {
         print("⏹️ FORCE STOPPING streaming audio")
+        
+        // Stop usage tracking and save time
+        stopUsageTracking()
         
         // CRITICAL: Set stopped flag FIRST - this blocks all new work
         isStopped = true
@@ -188,6 +210,61 @@ class StreamingAudioManager: NSObject, ObservableObject {
         duration = player.duration
     }
     
+    // MARK: - Usage Tracking Methods
+    
+    private func startUsageTracking() {
+        // Record when playback started
+        playbackStartTime = Date()
+        
+        // Start a timer to track usage every 10 seconds
+        usageTrackingTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.trackCurrentPlaybackTime()
+            }
+        }
+        
+        print("⏱️ Started usage tracking")
+    }
+    
+    private func stopUsageTracking() {
+        // Stop the timer
+        usageTrackingTimer?.invalidate()
+        usageTrackingTimer = nil
+        
+        // Save any remaining time
+        Task {
+            await trackCurrentPlaybackTime()
+        }
+        
+        playbackStartTime = nil
+        print("⏱️ Stopped usage tracking")
+    }
+    
+    private func trackCurrentPlaybackTime() async {
+        guard let startTime = playbackStartTime,
+              let membershipManager = membershipManager else {
+            return
+        }
+        
+        // Calculate time since last tracking
+        let now = Date()
+        let elapsedTime = now.timeIntervalSince(startTime)
+        
+        // Only track if we have meaningful time (> 1 second)
+        if elapsedTime > 1 {
+            // Track the usage
+            await membershipManager.trackUsageTime(seconds: elapsedTime)
+            
+            // Update accumulated time for local tracking
+            accumulatedPlaybackTime += elapsedTime
+            
+            // Reset start time for next interval
+            playbackStartTime = now
+            
+            print("⏱️ Tracked \(Int(elapsedTime))s of playback (total session: \(Int(accumulatedPlaybackTime))s)")
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func resetState() {
@@ -204,6 +281,12 @@ class StreamingAudioManager: NSObject, ObservableObject {
         voiceIdForGeneration = ""
         currentTime = 0
         duration = 0
+        
+        // Reset usage tracking
+        playbackStartTime = nil
+        accumulatedPlaybackTime = 0
+        usageTrackingTimer?.invalidate()
+        usageTrackingTimer = nil
     }
     
     private func generateAndPlayChunks(voiceId: String, maxChunks: Int? = nil, startFromChunk: Int = 0) async {
@@ -296,19 +379,13 @@ class StreamingAudioManager: NSObject, ObservableObject {
                     print("📦 Generated chunk \(index + 1), Queue now has \(audioQueue.count) chunk(s), currentChunkIndex=\(currentChunkIndex), isPlaying=\(isPlaying)")
                     
                     // Check if we should start/resume playing
-                    // For initial playback (currentChunkIndex == 0), need 3 chunks so after playing chunk 1, we have 2 left
-                    // For resume after buffering (currentChunkIndex > 0), need 2 chunks
-                    let requiredBuffer = (currentChunkIndex == 0) ? 3 : minimumBufferBeforePlay
-                    
-                    if !isPlaying && audioQueue.count >= requiredBuffer && currentChunkIndex == 0 {
-                        print("🎵 Initial buffer ready (\(audioQueue.count) chunks in queue, need \(requiredBuffer)), attempting to start playback...")
-                        playNextChunk()
-                    } else if !isPlaying && audioQueue.count >= minimumBufferBeforePlay && currentChunkIndex > 0 {
-                        // Resume after buffering pause
-                        print("🎵 Buffer refilled (\(audioQueue.count) chunks in queue), attempting to resume playback...")
+                    // Start playback as soon as 2 chunks are ready (faster initial response)
+                    // Generation continues in parallel, so buffer will refill naturally
+                    if !isPlaying && audioQueue.count >= minimumBufferBeforePlay {
+                        print("🎵 Buffer ready (\(audioQueue.count) chunks in queue, minimum: \(minimumBufferBeforePlay)), attempting to start playback...")
                         playNextChunk()
                     } else {
-                        print("⏳ Not starting playback yet: isPlaying=\(isPlaying), queueCount=\(audioQueue.count), currentChunkIndex=\(currentChunkIndex), need \(requiredBuffer) chunks")
+                        print("⏳ Not starting playback yet: isPlaying=\(isPlaying), queueCount=\(audioQueue.count), need \(minimumBufferBeforePlay) chunks")
                     }
                 }
                 
@@ -448,6 +525,12 @@ class StreamingAudioManager: NSObject, ObservableObject {
             player.play()
             
             currentPlayer = player
+            
+            // Start tracking usage if this is the first chunk
+            if currentChunkIndex == 1 && !isPaused {
+                startUsageTracking()
+            }
+            
             isPlaying = true
             
             // Initialize time values for this chunk
@@ -468,48 +551,124 @@ class StreamingAudioManager: NSObject, ObservableObject {
     }
     
     private func splitIntoParagraphs(_ text: String) -> [String] {
+        // OPTIMIZATION: Use 800-char chunks for balanced performance
+        // Fast initial response (~8-10 sec) + reasonable API usage
+        let maxChunkSize = 800
+        let minChunkSize = 300 // Merge short paragraphs to avoid tiny chunks
+        
         // Split by double newlines (paragraphs)
         let paragraphs = text.components(separatedBy: "\n\n")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         
-        // Further split if any paragraph is too long (over 3000 chars)
         var chunks: [String] = []
+        var currentChunk = ""
         
         for paragraph in paragraphs {
-            if paragraph.count <= 3000 {
-                chunks.append(paragraph)
-            } else {
+            // Try to add paragraph to current chunk
+            let separator = currentChunk.isEmpty ? "" : "\n\n"
+            let combinedSize = currentChunk.count + separator.count + paragraph.count
+            
+            // Case 1: Paragraph alone is too long - need to split it
+            if paragraph.count > maxChunkSize {
+                // Save accumulated chunk first (if any)
+                if !currentChunk.isEmpty {
+                    chunks.append(currentChunk)
+                    currentChunk = ""
+                }
+                
                 // Split long paragraph by sentences
                 let sentences = splitIntoSentences(paragraph)
-                var currentChunk = ""
+                var tempChunk = ""
                 
                 for sentence in sentences {
-                    if currentChunk.count + sentence.count > 3000 {
-                        if !currentChunk.isEmpty {
-                            chunks.append(currentChunk.trimmingCharacters(in: .whitespacesAndNewlines))
-                            currentChunk = ""
+                    let potentialSize = tempChunk.count + sentence.count + (tempChunk.isEmpty ? 0 : 1)
+                    
+                    if potentialSize > maxChunkSize {
+                        // Save accumulated sentences if they meet minimum
+                        if tempChunk.count >= minChunkSize {
+                            chunks.append(tempChunk.trimmingCharacters(in: .whitespacesAndNewlines))
+                            tempChunk = ""
                         }
                         
                         // If single sentence is too long, force split
-                        if sentence.count > 3000 {
-                            let forceSplit = forceSplitText(sentence, maxLength: 3000)
-                            chunks.append(contentsOf: forceSplit)
+                        if sentence.count > maxChunkSize {
+                            if !tempChunk.isEmpty {
+                                let combined = tempChunk + " " + sentence
+                                let forceSplit = forceSplitText(combined, maxLength: maxChunkSize)
+                                chunks.append(contentsOf: forceSplit)
+                                tempChunk = ""
+                            } else {
+                                let forceSplit = forceSplitText(sentence, maxLength: maxChunkSize)
+                                chunks.append(contentsOf: forceSplit)
+                            }
                         } else {
-                            currentChunk = sentence
+                            tempChunk = sentence
                         }
                     } else {
-                        currentChunk += (currentChunk.isEmpty ? "" : " ") + sentence
+                        tempChunk += (tempChunk.isEmpty ? "" : " ") + sentence
                     }
                 }
                 
-                if !currentChunk.isEmpty {
-                    chunks.append(currentChunk.trimmingCharacters(in: .whitespacesAndNewlines))
+                // Start new chunk with leftover or merge if too small
+                if !tempChunk.isEmpty {
+                    if tempChunk.count >= minChunkSize {
+                        chunks.append(tempChunk.trimmingCharacters(in: .whitespacesAndNewlines))
+                    } else {
+                        currentChunk = tempChunk.trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                }
+            }
+            // Case 2: Combined size fits within max - add to current chunk
+            else if combinedSize <= maxChunkSize {
+                currentChunk += separator + paragraph
+            }
+            // Case 3: Combined size exceeds max
+            else {
+                // Save current chunk if it meets minimum
+                if currentChunk.count >= minChunkSize {
+                    chunks.append(currentChunk)
+                    currentChunk = paragraph
+                } else {
+                    // Current chunk is too small - merge with this paragraph even if slightly over max
+                    // (Better to have one slightly large chunk than one tiny chunk)
+                    if combinedSize <= Int(Double(maxChunkSize) * 1.2) { // Allow 20% overflow
+                        currentChunk += separator + paragraph
+                        chunks.append(currentChunk)
+                        currentChunk = ""
+                    } else {
+                        // Too large even with overflow - save separately
+                        if !currentChunk.isEmpty {
+                            chunks.append(currentChunk)
+                        }
+                        currentChunk = paragraph
+                    }
                 }
             }
         }
         
-        print("📊 Split text into \(chunks.count) chunks")
+        // Handle remaining chunk
+        if !currentChunk.isEmpty {
+            // If too small and we have previous chunks, merge with last chunk
+            if currentChunk.count < minChunkSize && !chunks.isEmpty {
+                let lastChunk = chunks.removeLast()
+                let mergedSize = lastChunk.count + currentChunk.count + 2
+                
+                // Only merge if combined size is reasonable
+                if mergedSize <= Int(Double(maxChunkSize) * 1.2) {
+                    chunks.append(lastChunk + "\n\n" + currentChunk)
+                } else {
+                    // Merged would be too large, keep separate
+                    chunks.append(lastChunk)
+                    chunks.append(currentChunk)
+                }
+            } else {
+                // First chunk or large enough - add as-is
+                chunks.append(currentChunk)
+            }
+        }
+        
+        print("📊 Split text into \(chunks.count) chunks (optimized for fast playback)")
         for (index, chunk) in chunks.enumerated() {
             print("   Chunk \(index + 1): \(chunk.count) chars")
         }

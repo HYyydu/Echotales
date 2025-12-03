@@ -363,7 +363,7 @@ struct MailComposeView: UIViewControllerRepresentable {
         let composer = MFMailComposeViewController()
         composer.mailComposeDelegate = context.coordinator
         composer.setSubject(subject)
-        composer.setToRecipients(["support@yourapp.com"])
+        composer.setToRecipients(["yuyanyy2022@outlook.com"])
         
         // Add device and app info for better support
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"

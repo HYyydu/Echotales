@@ -78,6 +78,9 @@ yarn-error.log*
 # API Keys and Configuration Files
 **/Config.plist
 
+# Backend (deployed separately)
+iOS/echotales-backend/
+
 # Temporary files
 *.tmp
 *.temp

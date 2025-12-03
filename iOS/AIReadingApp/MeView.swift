@@ -4,15 +4,19 @@ import FirebaseAuth
 struct MeView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var statsManager = UserStatsManager()
+    @StateObject private var membershipManager = MembershipManager()
     @State private var showRecordings = false
     @State private var showReadingHistory = false
     @State private var showDownloadBooks = false
     @State private var showNotifications = false
     @State private var showPrivacySecurity = false
     @State private var showHelpSupport = false
+    @State private var showMembership = false
     @State private var userName: String = "Reader"
     @State private var memberSince: String = "2024"
     @State private var showSignOutAlert = false
+    @State private var showSignOutError = false
+    @State private var signOutErrorMessage = ""
     
     // Design tokens
     private let primaryPink = Color(hex: "F9DAD2")
@@ -48,9 +52,9 @@ struct MeView: View {
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(textPrimary)
                         
-                    Text("Free Member • Since \(memberSince)")
-                        .font(.system(size: 14))
-                        .foregroundColor(textSecondary)
+                        Text(membershipStatusText)
+                            .font(.system(size: 14))
+                            .foregroundColor(textSecondary)
                 }
                 
                 Spacer()
@@ -59,6 +63,23 @@ struct MeView: View {
                 .padding(.vertical, 24)
                 .padding(.top, 60) // Clear status bar
                 .background(Color.white)
+                
+                // Free User Usage Banner (shown for free users only)
+                if let status = membershipManager.membershipStatus,
+                   (status.type == .free || status.type == .freeTrial) {
+                    FreeUsageBanner(
+                        usedMinutes: status.usedMinutes,
+                        totalMinutes: 30,
+                        remainingMinutes: status.remainingFreeMinutes,
+                        resetDate: status.monthlyUsageResetDate,
+                        isTrial: status.type == .freeTrial,
+                        onUpgrade: {
+                            showMembership = true
+                        }
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                }
                 
                 // Stats Cards Section
                 VStack(spacing: 16) {
@@ -180,7 +201,12 @@ struct MeView: View {
                         .background(bgGray)
                     
                     // Become Member CTA
-                    BecomeMemberButton()
+                    BecomeMemberButton(
+                        isPremium: membershipManager.membershipStatus?.type == .premium,
+                        action: {
+                            showMembership = true
+                        }
+                    )
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
                         .background(Color.white)
@@ -278,12 +304,24 @@ struct MeView: View {
         .fullScreenCover(isPresented: $showHelpSupport) {
             HelpSupportView()
         }
+        .fullScreenCover(isPresented: $showMembership) {
+            MembershipView()
+        }
+        .onChange(of: showMembership) { newValue in
+            // Refresh membership status when view is dismissed
+            if !newValue {
+                Task {
+                    await membershipManager.loadMembershipStatus()
+                }
+            }
+        }
         .onAppear {
             loadUserInfo()
             // Always refresh stats when Me tab appears to catch any updates
             Task {
                 print("📊 MeView appeared - refreshing stats...")
                 await statsManager.fetchUserStats()
+                await membershipManager.loadMembershipStatus()
             }
         }
         .refreshable {
@@ -297,13 +335,62 @@ struct MeView: View {
         } message: {
             Text("Are you sure you want to sign out?")
         }
+        .alert("Sign Out Error", isPresented: $showSignOutError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(signOutErrorMessage)
+        }
     }
     
     private func signOut() {
         do {
             try authManager.signOut()
+            // Sign out successful - the auth state listener will automatically update
+            // and ContentView will show SignInView
         } catch {
+            // Show error to user
+            signOutErrorMessage = error.localizedDescription
+            showSignOutError = true
             print("❌ Error signing out: \(error.localizedDescription)")
+        }
+    }
+    
+    private var membershipStatusText: String {
+        guard let status = membershipManager.membershipStatus else {
+            return "Free Member • Since \(memberSince)"
+        }
+        
+        switch status.type {
+        case .premium:
+            if let endDate = status.endDate {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MMM d, yyyy"
+                return "Premium Member • Expires \(formatter.string(from: endDate))"
+            }
+            return "Premium Member • Since \(memberSince)"
+            
+        case .freeTrial:
+            if status.hasExpired {
+                return "Free Member • Since \(memberSince)"
+            }
+            let remainingMinutes = Int((1800 - status.usedTimeInSeconds) / 60)
+            let remainingDays = status.remainingTimeInSeconds / 86400
+            if remainingDays > 0 {
+                return "Free Trial • \(Int(remainingDays)) days left, \(remainingMinutes) min remaining"
+            } else {
+                return "Free Trial • \(remainingMinutes) min remaining"
+            }
+            
+        case .free:
+            let remainingMinutes = status.remainingFreeMinutes
+            let usedMinutes = status.usedMinutes
+            if let resetDate = status.monthlyUsageResetDate {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MMM d"
+                return "Free • \(remainingMinutes)/30 min left (resets \(formatter.string(from: resetDate)))"
+            } else {
+                return "Free • \(remainingMinutes)/30 min left this month"
+            }
         }
     }
     
@@ -375,10 +462,11 @@ struct StatCard: View {
 
 // MARK: - Become Member Button Component
 struct BecomeMemberButton: View {
+    var isPremium: Bool = false
+    var action: () -> Void
+    
     var body: some View {
-        Button(action: {
-            // Upgrade to premium action
-        }) {
+        Button(action: action) {
             HStack(spacing: 16) {
                 // Crown Icon
                 ZStack {
@@ -393,11 +481,11 @@ struct BecomeMemberButton: View {
                 
                 // Text Content
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Become a Premium Member")
+                    Text(isPremium ? "Premium Member" : "Become a Premium Member")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(Color(hex: "0F172A"))
                     
-                    Text("Unlock unlimited features")
+                    Text(isPremium ? "Manage your subscription" : "Unlock unlimited features")
                         .font(.system(size: 13))
                         .foregroundColor(Color(hex: "6B7280"))
                 }
@@ -474,6 +562,132 @@ struct NavigationButton: View {
             .padding(.vertical, 18)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Free Usage Banner Component
+struct FreeUsageBanner: View {
+    let usedMinutes: Int
+    let totalMinutes: Int
+    let remainingMinutes: Int
+    let resetDate: Date?
+    let isTrial: Bool
+    let onUpgrade: () -> Void
+    
+    private let primaryPink = Color(hex: "F9DAD2")
+    private let secondaryPink = Color(hex: "F5B5A8")
+    private let textPrimary = Color(hex: "0F172A")
+    private let textSecondary = Color(hex: "475569")
+    
+    var progressPercentage: Double {
+        return Double(usedMinutes) / Double(totalMinutes)
+    }
+    
+    var statusColor: Color {
+        if remainingMinutes <= 5 {
+            return Color.red
+        } else if remainingMinutes <= 10 {
+            return Color.orange
+        } else {
+            return Color.green
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isTrial ? "Free Trial Audio Time" : "Monthly Free Audio Time")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(textPrimary)
+                    
+                    if let resetDate = resetDate, !isTrial {
+                        Text("Resets \(formattedResetDate(resetDate))")
+                            .font(.system(size: 12))
+                            .foregroundColor(textSecondary)
+                    } else if isTrial {
+                        Text("One-time trial offer")
+                            .font(.system(size: 12))
+                            .foregroundColor(textSecondary)
+                    }
+                }
+                
+                Spacer()
+                
+                // Remaining time
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(remainingMinutes) min")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(statusColor)
+                    
+                    Text("remaining")
+                        .font(.system(size: 11))
+                        .foregroundColor(textSecondary)
+                }
+            }
+            
+            // Progress bar
+            ZStack(alignment: .leading) {
+                // Background
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(hex: "E5E7EB"))
+                    .frame(height: 8)
+                
+                // Progress
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(statusColor)
+                    .frame(width: CGFloat(progressPercentage) * (UIScreen.main.bounds.width - 80), height: 8)
+            }
+            
+            // Usage text
+            Text("\(usedMinutes) of \(totalMinutes) minutes used")
+                .font(.system(size: 12))
+                .foregroundColor(textSecondary)
+            
+            // Upgrade button
+            Button(action: onUpgrade) {
+                HStack {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 12))
+                    
+                    Text("Upgrade to Premium for Unlimited Audio")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(secondaryPink)
+                .cornerRadius(8)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(statusColor.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    private func formattedResetDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let days = calendar.dateComponents([.day], from: now, to: date).day ?? 0
+        
+        if days == 0 {
+            return "today"
+        } else if days == 1 {
+            return "tomorrow"
+        } else if days < 7 {
+            return "in \(days) days"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d"
+            return "on \(formatter.string(from: date))"
+        }
     }
 }
 

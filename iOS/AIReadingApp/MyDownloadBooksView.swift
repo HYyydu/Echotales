@@ -50,7 +50,7 @@ struct MyDownloadBooksView: View {
                             .frame(width: 40, height: 40)
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 60)
+                    .padding(.top, 22)
                     .padding(.bottom, 16)
                     .background(Color.white)
                     

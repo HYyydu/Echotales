@@ -134,25 +134,26 @@ Options for deployment:
 
 ### 1. Firebase Security Rules
 
-Ensure your Firestore has proper security rules:
+⚠️ **IMPORTANT:** Your Firestore security rules have been created in `firestore.rules` and **must be deployed** to Firebase Console.
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users can only read/write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Books are read-only for authenticated users
-    match /books/{bookId} {
-      allow read: if request.auth != null;
-      allow write: if false; // Only server can write
-    }
-  }
-}
+**See `FIRESTORE_SETUP.md` for complete deployment instructions.**
+
+Quick deploy:
+1. Open https://console.firebase.google.com
+2. Go to Firestore Database → Rules
+3. Copy contents from `firestore.rules` and paste
+4. Click Publish
+
+Or use Firebase CLI:
+```bash
+firebase deploy --only firestore:rules
 ```
+
+The rules ensure:
+- Users can only access their own data
+- Proper authentication checks for all operations
+- Membership and voice recording data is protected
+- Books are read-only for authenticated users
 
 ### 2. API Key Restrictions
 

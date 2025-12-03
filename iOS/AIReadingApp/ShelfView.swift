@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseStorage
 
 struct ShelfView: View {
     @State private var userBooks: [UserBook] = []
@@ -31,6 +32,7 @@ struct ShelfView: View {
                 
                 Spacer()
                 
+                // Select/Done Button - always visible when there are books
                 if !userBooks.isEmpty || !shelfBooks.isEmpty {
                     Button(action: {
                         isEditMode.toggle()
@@ -39,23 +41,6 @@ struct ShelfView: View {
                             .font(.system(size: 16))
                             .foregroundColor(textSecondary)
                     }
-                }
-                
-                // Import Button
-                Button(action: {
-                    showImportSheet = true
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Import")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(secondaryPink)
-                    .cornerRadius(8)
                 }
             }
             .padding(.horizontal, 20)
@@ -155,7 +140,7 @@ struct ShelfView: View {
                                         }
                                     )
                                 } else {
-                                    NavigationLink(destination: UserBookReaderView(book: book)) {
+                                    NavigationLink(destination: UserBookDetailsView(book: book)) {
                                         UserBookCard(
                                             book: book,
                                             isEditMode: isEditMode,
@@ -166,6 +151,13 @@ struct ShelfView: View {
                                     }
                                     .buttonStyle(PlainButtonStyle())
                                 }
+                            }
+                            
+                            // Add Book Card (only visible when not in edit mode)
+                            if !isEditMode {
+                                AddBookCard(onTap: {
+                                    showImportSheet = true
+                                })
                             }
                         }
                         .padding(.horizontal, 16)
@@ -187,14 +179,21 @@ struct ShelfView: View {
         }
         .onAppear {
             loadShelfBooks()
+            loadUserBooks()
         }
         }
     }
     
     // Add book
     private func addBook(title: String, author: String, coverImage: UIImage?, content: String?, fileType: String?) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("⚠️ ShelfView: No authenticated user, cannot save book")
+            return
+        }
+        
+        let bookId = UUID().uuidString
         let newBook = UserBook(
-            id: UUID().uuidString,
+            id: bookId,
             title: title,
             author: author,
             coverImage: coverImage,
@@ -202,13 +201,177 @@ struct ShelfView: View {
             content: content,
             fileType: fileType
         )
+        
+        // Add to local array immediately for instant UI update
         userBooks.append(newBook)
         showImportSheet = false
+        
+        // Save to Firestore in background
+        Task {
+            await saveUserBookToFirestore(book: newBook, userId: userId)
+        }
+    }
+    
+    // Save user book to Firestore
+    private func saveUserBookToFirestore(book: UserBook, userId: String) async {
+        let db = Firestore.firestore()
+        let storage = Storage.storage()
+        
+        // Upload cover image to Firebase Storage if exists
+        var coverImageUrl: String?
+        if let image = book.coverImage,
+           let imageData = image.jpegData(compressionQuality: 0.7) {
+            
+            let storageRef = storage.reference().child("userBookCovers/\(userId)/\(book.id).jpg")
+            
+            do {
+                let metadata = StorageMetadata()
+                metadata.contentType = "image/jpeg"
+                
+                _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
+                coverImageUrl = try await storageRef.downloadURL().absoluteString
+                print("✅ ShelfView: Uploaded cover image to Storage")
+            } catch {
+                print("⚠️ ShelfView: Failed to upload cover image: \(error.localizedDescription)")
+            }
+        }
+        
+        let bookData: [String: Any] = [
+            "userId": userId,
+            "title": book.title,
+            "author": book.author,
+            "coverImageUrl": coverImageUrl as Any,
+            "content": book.content as Any,
+            "fileType": book.fileType as Any,
+            "addedDate": Timestamp(date: book.addedDate)
+        ]
+        
+        do {
+            try await db.collection("userUploadedBooks").document(book.id).setData(bookData)
+            print("✅ ShelfView: Saved user book '\(book.title)' to Firestore")
+        } catch {
+            print("❌ ShelfView: Error saving user book: \(error.localizedDescription)")
+        }
+    }
+    
+    // Load user-uploaded books from Firestore
+    private func loadUserBooks() {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("⚠️ ShelfView: No authenticated user found")
+            return
+        }
+        
+        print("📚 ShelfView: Loading user-uploaded books for user: \(userId)")
+        
+        let db = Firestore.firestore()
+        db.collection("userUploadedBooks")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ ShelfView: Error loading user books: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    print("⚠️ ShelfView: No user books found")
+                    return
+                }
+                
+                print("📖 ShelfView: Found \(documents.count) user-uploaded books")
+                
+                var fetchedBooks: [UserBook] = []
+                
+                for doc in documents {
+                    let data = doc.data()
+                    
+                    guard let title = data["title"] as? String,
+                          let author = data["author"] as? String,
+                          let timestamp = data["addedDate"] as? Timestamp else {
+                        print("⚠️ ShelfView: Skipping user book with invalid data: \(doc.documentID)")
+                        continue
+                    }
+                    
+                    let content = data["content"] as? String
+                    let fileType = data["fileType"] as? String
+                    let coverImageUrl = data["coverImageUrl"] as? String
+                    
+                    // Create book without image first
+                    var book = UserBook(
+                        id: doc.documentID,
+                        title: title,
+                        author: author,
+                        coverImage: nil,
+                        addedDate: timestamp.dateValue(),
+                        content: content,
+                        fileType: fileType
+                    )
+                    
+                    fetchedBooks.append(book)
+                    print("✅ ShelfView: Loaded user book: \(title)")
+                    
+                    // Download cover image asynchronously if URL exists
+                    if let urlString = coverImageUrl, let url = URL(string: urlString) {
+                        Task {
+                            do {
+                                let (data, _) = try await URLSession.shared.data(from: url)
+                                if let image = UIImage(data: data) {
+                                    await MainActor.run {
+                                        if let index = self.userBooks.firstIndex(where: { $0.id == doc.documentID }) {
+                                            var updatedBook = self.userBooks[index]
+                                            updatedBook = UserBook(
+                                                id: updatedBook.id,
+                                                title: updatedBook.title,
+                                                author: updatedBook.author,
+                                                coverImage: image,
+                                                addedDate: updatedBook.addedDate,
+                                                content: updatedBook.content,
+                                                fileType: updatedBook.fileType
+                                            )
+                                            self.userBooks[index] = updatedBook
+                                        }
+                                    }
+                                }
+                            } catch {
+                                print("⚠️ ShelfView: Failed to download cover image: \(error.localizedDescription)")
+                            }
+                        }
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    print("📚 ShelfView: Setting \(fetchedBooks.count) user books to display")
+                    self.userBooks = fetchedBooks
+                }
+            }
     }
     
     // Delete book
     private func deleteBook(_ book: UserBook) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        // Remove from local array
         userBooks.removeAll { $0.id == book.id }
+        
+        // Delete cover image from Storage
+        let storage = Storage.storage()
+        let storageRef = storage.reference().child("userBookCovers/\(userId)/\(book.id).jpg")
+        storageRef.delete { error in
+            if let error = error {
+                print("⚠️ ShelfView: Error deleting cover image: \(error.localizedDescription)")
+            } else {
+                print("✅ ShelfView: Deleted cover image from Storage")
+            }
+        }
+        
+        // Delete from Firestore
+        let db = Firestore.firestore()
+        db.collection("userUploadedBooks").document(book.id).delete { error in
+            if let error = error {
+                print("❌ ShelfView: Error deleting user book: \(error.localizedDescription)")
+            } else {
+                print("✅ ShelfView: Deleted user book '\(book.title)' from Firestore")
+            }
+        }
     }
     
     // Load shelf books from Firebase
@@ -345,62 +508,10 @@ struct ShelfView: View {
                     print("📚 ShelfView: Setting \(fetchedBooks.count) books to display")
                     self.shelfBooks = fetchedBooks
                     
-                    // Download shelf books to permanent storage if needed (background operation)
-                    Task {
-                        await self.ensureShelfBooksAreDownloaded(fetchedBooks)
-                    }
+                    // NOTE: We no longer automatically download shelf books
+                    // Users must explicitly download books they want to read offline
                 }
             }
-    }
-    
-    /// Ensure shelf books are downloaded to permanent storage (background operation)
-    private func ensureShelfBooksAreDownloaded(_ books: [ShelfBook]) async {
-        print("📥 ShelfView: Checking if shelf books need to be downloaded permanently")
-        
-        // Load cloud catalog to get metadata
-        guard let catalog = await CloudBookService.shared.loadCloudCatalog() else {
-            print("⚠️ ShelfView: Could not load catalog for downloading")
-            return
-        }
-        
-        for book in books {
-            // Skip if already downloaded
-            if CloudBookService.shared.isBookDownloaded(bookId: book.bookId) {
-                continue
-            }
-            
-            // Skip bundled books (they don't need downloading)
-            if book.epubUrl.hasPrefix("file://") || book.epubUrl.hasPrefix("bundle://") {
-                continue
-            }
-            
-            // Find metadata in catalog
-            guard let metadata = catalog.books.first(where: { $0.id == book.bookId }) else {
-                print("⚠️ ShelfView: Book '\(book.title)' not found in catalog")
-                continue
-            }
-            
-            print("📥 ShelfView: Downloading '\(book.title)' to permanent storage")
-            
-            // Check if in streaming cache - move to permanent
-            if let streamingURL = StreamingEPUBService.shared.getStreamingBookURL(bookId: book.bookId) {
-                do {
-                    try await StreamingEPUBService.shared.saveForOffline(metadata: metadata)
-                    print("✅ ShelfView: Moved '\(book.title)' from streaming to permanent storage")
-                    continue
-                } catch {
-                    print("⚠️ ShelfView: Failed to move from streaming: \(error)")
-                }
-            }
-            
-            // Download to permanent storage
-            do {
-                _ = try await CloudBookService.shared.downloadBook(metadata: metadata)
-                print("✅ ShelfView: Downloaded '\(book.title)' to permanent storage")
-            } catch {
-                print("⚠️ ShelfView: Failed to download '\(book.title)': \(error)")
-            }
-        }
     }
     
     // Delete shelf book from Firebase
@@ -589,24 +700,28 @@ struct ShelfBookCard: View {
                         Rectangle()
                             .fill(Color(hex: getRandomColor()))
                     }
-                    
-                    // Delete Button (Edit Mode only)
-                    if isEditMode {
-                        Button(action: onDelete) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundColor(.red)
-                                .background(
-                                    Circle()
-                                        .fill(Color.white)
-                                        .frame(width: 24, height: 24)
-                                )
-                        }
-                        .padding(8)
-                    }
                 }
                 .cornerRadius(12)
                 .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+                .overlay(
+                    // Delete Button (Edit Mode only) - overlaid on top so it's not clipped
+                    Group {
+                        if isEditMode {
+                            Button(action: onDelete) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.red)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.white)
+                                            .frame(width: 24, height: 24)
+                                    )
+                            }
+                            .offset(x: 10, y: -10)
+                        }
+                    },
+                    alignment: .topTrailing
+                )
             }
             .aspectRatio(2/3, contentMode: .fit) // Fixed 2:3 aspect ratio
             
@@ -711,60 +826,101 @@ struct UserBookCard: View {
     let onDelete: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ZStack(alignment: .topTrailing) {
-                // Cover Image
-                if let coverImage = book.coverImage {
-                    Image(uiImage: coverImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 240)
-                        .clipped()
-                        .cornerRadius(12)
-                } else {
-                    // Placeholder
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(LinearGradient(
-                            colors: [Color(hex: "8B5CF6"), Color(hex: "EC4899")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(height: 240)
-                        .overlay(
-                            Image(systemName: "book.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(.white.opacity(0.7))
-                        )
-                }
-                
-                // Delete Button (Edit Mode)
-                if isEditMode {
-                    Button(action: onDelete) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.red)
-                            .background(
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 24, height: 24)
+        VStack(alignment: .leading, spacing: 8) {
+            // Cover Image with fixed aspect ratio (matching ShelfBookCard)
+            GeometryReader { geometry in
+                ZStack(alignment: .topTrailing) {
+                    // Cover Image
+                    if let coverImage = book.coverImage {
+                        Image(uiImage: coverImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    } else {
+                        // Placeholder
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(LinearGradient(
+                                colors: [Color(hex: "8B5CF6"), Color(hex: "EC4899")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                            .overlay(
+                                Image(systemName: "book.fill")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.white.opacity(0.7))
                             )
                     }
-                    .padding(8)
                 }
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+                .overlay(
+                    // Delete Button (Edit Mode) - overlaid on top so it's not clipped
+                    Group {
+                        if isEditMode {
+                            Button(action: onDelete) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.red)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.white)
+                                            .frame(width: 24, height: 24)
+                                    )
+                            }
+                            .offset(x: 10, y: -10)
+                        }
+                    },
+                    alignment: .topTrailing
+                )
             }
-            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .aspectRatio(2/3, contentMode: .fit) // Fixed 2:3 aspect ratio (same as ShelfBookCard)
             
-            // Book Info
-            VStack(alignment: .leading, spacing: 4) {
+            // Title only (matching ShelfBookCard style)
+            VStack(alignment: .leading, spacing: 0) {
+                // Title
                 Text(book.title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(Color(hex: "0F172A"))
                     .lineLimit(2)
-                
-                Text(book.author)
-                    .font(.system(size: 14))
-                    .foregroundColor(Color(hex: "6B7280"))
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+// MARK: - Add Book Card (Plus Button Card)
+struct AddBookCard: View {
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Plus Button Card with same aspect ratio as book cards
+            Button(action: onTap) {
+                GeometryReader { geometry in
+                    ZStack {
+                        // White background
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
+                        
+                        // Plus icon in the center
+                        Image(systemName: "plus")
+                            .font(.system(size: 48, weight: .light))
+                            .foregroundColor(Color(hex: "CBD5E1"))
+                    }
+                }
+                .aspectRatio(2/3, contentMode: .fit)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Empty space for title alignment (to match other cards)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(" ")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.clear)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -894,7 +1050,7 @@ struct ImportBookSheet: View {
                 HStack(spacing: 12) {
                     FormatBadge(format: "PDF", icon: "doc.fill")
                     FormatBadge(format: "TXT", icon: "doc.text")
-                    FormatBadge(format: "RTF", icon: "doc.richtext")
+                    FormatBadge(format: "EPUB", icon: "book.closed")
                     FormatBadge(format: "DOC", icon: "doc")
                 }
             }
@@ -903,17 +1059,34 @@ struct ImportBookSheet: View {
             
             // Error Message
             if let error = errorMessage {
-                Text(error)
-                    .font(.system(size: 14))
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.red.opacity(0.1))
-                    )
-                    .padding(.horizontal, 24)
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.red)
+                        
+                        Text("Import Failed")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.red)
+                    }
+                    
+                    Text(error)
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "991B1B")) // Dark red
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.red.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal, 24)
             }
             
             // Action Button
@@ -981,11 +1154,51 @@ struct ImportBookSheet: View {
                     Text("\(document.content.split(separator: " ").count) words")
                         .font(.system(size: 12))
                         .foregroundColor(textTertiary)
+                    
+                    // Show formatting indicator if available
+                    if let formatted = document.formattedContent, !formatted.formattingHints.isEmpty {
+                        Text("•")
+                            .foregroundColor(textTertiary)
+                        Image(systemName: "text.badge.checkmark")
+                            .font(.system(size: 12))
+                            .foregroundColor(secondaryPink)
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(primaryPink.opacity(0.3))
                 .cornerRadius(20)
+                
+                // Partial extraction warning
+                if document.partialExtraction && !document.extractionWarnings.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.orange)
+                            
+                            Text("Partial Extraction")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.orange)
+                        }
+                        
+                        Text("Some content may be missing due to file corruption or format issues. The book is still readable.")
+                            .font(.system(size: 12))
+                            .foregroundColor(textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                    .padding(.horizontal, 24)
+                }
                 
                 // Form Fields
                 VStack(spacing: 20) {
@@ -1063,9 +1276,27 @@ struct ImportBookSheet: View {
         // Get user's name from Auth
         let userName = Auth.auth().currentUser?.displayName ?? "Me"
         
+        print("🚀 ShelfView: Starting document import process")
+        print("   File: \(url.lastPathComponent)")
+        
         DispatchQueue.global(qos: .userInitiated).async {
             if let processed = DocumentProcessor.processDocument(url: url, userDisplayName: userName) {
                 DispatchQueue.main.async {
+                    print("✅ ShelfView: Document processed successfully")
+                    
+                    // Log if partial extraction
+                    if processed.partialExtraction {
+                        print("   ⚠️ Partial extraction - \(processed.extractionWarnings.count) warning(s)")
+                        for warning in processed.extractionWarnings {
+                            print("      - \(warning)")
+                        }
+                    }
+                    
+                    // Log formatting info
+                    if let formatted = processed.formattedContent {
+                        print("   🎨 Formatting preserved: \(formatted.formattingHints.count) hints")
+                    }
+                    
                     self.processedDocument = processed
                     self.bookTitle = processed.title
                     self.bookAuthor = userName
@@ -1074,7 +1305,34 @@ struct ImportBookSheet: View {
                 }
             } else {
                 DispatchQueue.main.async {
-                    self.errorMessage = "Failed to process document. Please make sure it's a valid PDF, TXT, RTF, or DOC file."
+                    print("❌ ShelfView: Document processing failed")
+                    print("   Check the console logs above for detailed error information")
+                    
+                    // Provide a more helpful error message
+                    let fileExtension = url.pathExtension.lowercased()
+                    var specificError = "Failed to process document."
+                    
+                    switch fileExtension {
+                    case "pdf":
+                        specificError = """
+                        Failed to process PDF. Possible reasons:
+                        • The PDF may be password-protected
+                        • The PDF may be corrupted
+                        • OCR may have failed (for scanned PDFs)
+                        
+                        Please check the Xcode console for detailed logs.
+                        """
+                    case "txt":
+                        specificError = "Failed to read text file. The file may be corrupted or empty."
+                    case "epub":
+                        specificError = "Failed to process EPUB file. The file may be corrupted or in an unsupported format."
+                    case "doc", "docx":
+                        specificError = "Failed to process Word document. The file may be corrupted or in an unsupported format."
+                    default:
+                        specificError = "File type '\(fileExtension)' is not supported. Please use PDF, TXT, EPUB, or DOC files."
+                    }
+                    
+                    self.errorMessage = specificError
                     self.isProcessing = false
                 }
             }
@@ -1159,19 +1417,186 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
 }
 
+// MARK: - User Book Details View
+struct UserBookDetailsView: View {
+    let book: UserBook
+    @Environment(\.dismiss) var dismiss
+    
+    @State private var showTextReader = false
+    @State private var showVoiceSelector = false
+    @State private var selectedRecording: VoiceRecording?
+    
+    // Design tokens
+    private let primaryPink = Color(hex: "F9DAD2")
+    private let secondaryPink = Color(hex: "F5B5A8")
+    private let textPrimary = Color(hex: "0F172A")
+    private let textSecondary = Color(hex: "475569")
+    private let textTertiary = Color(hex: "6B7280")
+    private let bgSecondary = Color(hex: "F9FAFB")
+    private let bgTertiary = Color(hex: "F3F4F6")
+    
+    var body: some View {
+        ZStack {
+            Color.white.ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Book Cover
+                    if let coverImage = book.coverImage {
+                        Image(uiImage: coverImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 200, height: 300)
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                    } else {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(LinearGradient(
+                                colors: [Color(hex: "8B5CF6"), Color(hex: "EC4899")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                            .frame(width: 200, height: 300)
+                            .overlay(
+                                Image(systemName: "book.fill")
+                                    .font(.system(size: 64))
+                                    .foregroundColor(.white.opacity(0.7))
+                            )
+                            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                    }
+                    
+                    // Book Information
+                    VStack(spacing: 8) {
+                        Text(book.title)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(textPrimary)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("by \(book.author)")
+                            .font(.system(size: 16))
+                            .foregroundColor(textSecondary)
+                        
+                        // Document Info
+                        HStack(spacing: 8) {
+                            if let fileType = book.fileType {
+                                Text(fileType.uppercased())
+                                    .font(.system(size: 14))
+                                    .foregroundColor(textTertiary)
+                                
+                                Text("•")
+                                    .foregroundColor(textTertiary)
+                            }
+                            
+                            if let content = book.content {
+                                let wordCount = content.split(separator: " ").count
+                                Text("\(wordCount) words")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(textTertiary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    
+                    // Action Buttons
+                    HStack(spacing: 12) {
+                        // Listen Now Button
+                        Button(action: { showVoiceSelector = true }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "headphones")
+                                    .font(.system(size: 18))
+                                
+                                Text("Listen Now")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(secondaryPink)
+                            .cornerRadius(12)
+                        }
+                        
+                        // Read Text Button
+                        Button(action: { showTextReader = true }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "book.fill")
+                                    .font(.system(size: 18))
+                                
+                                Text("Read Text")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(secondaryPink)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(secondaryPink, lineWidth: 2)
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    
+                    // Info text
+                    Text("Choose from your recorded voices for AI narration")
+                        .font(.system(size: 12))
+                        .foregroundColor(textTertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                    
+                    Spacer(minLength: 40)
+                }
+                .padding(.vertical, 24)
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: $showTextReader) {
+            UserBookReaderView(
+                book: book,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                bgSecondary: bgSecondary
+            )
+        }
+        .sheet(isPresented: $showVoiceSelector) {
+            VoiceSelectorView(
+                onSelectVoice: { recording in
+                    selectedRecording = recording
+                    showVoiceSelector = false
+                    // For user books, we play audio directly in the reader view
+                    // No need to open a separate audio player
+                }
+            )
+        }
+    }
+}
+
 // MARK: - User Book Reader View
 struct UserBookReaderView: View {
     let book: UserBook
     @Environment(\.dismiss) var dismiss
+    
+    let textPrimary: Color
+    let textSecondary: Color
+    let bgSecondary: Color
+    
     @State private var fontSize: CGFloat = 18
     @State private var currentPage: Int = 0
     @State private var pages: [String] = []
     @State private var showControls: Bool = true
+    @State private var pageTransitionDirection: PageTransitionDirection = .forward
     
-    // Design tokens
-    private let textPrimary = Color(hex: "0F172A")
-    private let textSecondary = Color(hex: "475569")
-    private let bgSecondary = Color(hex: "F9FAFB")
+    // Audio playback states - using new streaming manager
+    @StateObject private var streamingManager = StreamingAudioManager()
+    @State private var recordings: [VoiceRecording] = []
+    @State private var selectedRecording: VoiceRecording?
+    @State private var showVoicePicker: Bool = false
+    
+    private let secondaryPink = Color(hex: "F5B5A8")
+    
+    enum PageTransitionDirection {
+        case forward, backward
+    }
     
     var body: some View {
         GeometryReader { geo in
@@ -1185,19 +1610,12 @@ struct UserBookReaderView: View {
                                 ScrollView(.vertical) {
                                     VStack(alignment: .leading, spacing: 16) {
                                         
-                                        // title only on first page
+                                        // title and chapter only on first page
                                         if index == 0 {
-                                            Text(book.title)
+                                            Text("Chapter 1")
                                                 .font(.system(size: 28, weight: .bold))
                                                 .foregroundColor(textPrimary)
-                                                .padding(.bottom, 4)
-                                            
-                                            Text("by \(book.author)")
-                                                .font(.system(size: 16))
-                                                .foregroundColor(textSecondary)
                                                 .padding(.bottom, 8)
-                                            
-                                            Divider().padding(.bottom, 8)
                                         }
                                         
                                         Text(pages[index])
@@ -1210,9 +1628,9 @@ struct UserBookReaderView: View {
                                         Spacer(minLength: 0)
                                     }
                                     .padding(.horizontal, 32)
-                                    .padding(.top, 60)
+                                    .padding(.top, 80)
                                 }
-                                .contentMargins(.bottom, max(24, geo.safeAreaInsets.bottom + 8), for: .scrollContent)
+                                .contentMargins(.bottom, max(160, geo.safeAreaInsets.bottom + 140), for: .scrollContent)
                                 .scrollIndicators(.hidden)
                                 .background(Color(.systemBackground))
                                 .tag(index)
@@ -1315,19 +1733,66 @@ struct UserBookReaderView: View {
                     
                     Spacer()
                     
-                    // Bottom page indicator
+                    // Bottom controls container
                     if showControls && !pages.isEmpty {
-                        HStack(spacing: 8) {
-                            Text("\(currentPage + 1) / \(pages.count)")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(textSecondary)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.white.opacity(0.9))
-                                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                                )
+                        VStack(spacing: 8) {
+                            // Error message display (only show errors, not progress)
+                            if let errorMsg = streamingManager.errorMessage {
+                                Text(errorMsg)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.red)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.red.opacity(0.1))
+                                    )
+                                    .padding(.bottom, 4)
+                            }
+                            
+                            ZStack {
+                                // Centered Page indicator
+                                HStack {
+                                    Spacer()
+                                    Text("\(currentPage + 1) / \(pages.count)")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(textSecondary)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            Capsule()
+                                                .fill(Color.white.opacity(0.9))
+                                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                        )
+                                    Spacer()
+                                }
+                                
+                                // Floating Play Button (bottom right)
+                                HStack {
+                                    Spacer()
+                                    Button(action: handlePlayButtonTap) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(secondaryPink)
+                                                .frame(width: 80, height: 80)
+                                                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 4)
+                                            
+                                            if streamingManager.isGenerating && !streamingManager.isPlaying {
+                                                ProgressView()
+                                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                    .scaleEffect(1.5)
+                                            } else {
+                                                Image(systemName: streamingManager.isPlaying ? "pause.fill" : "play.fill")
+                                                    .font(.system(size: 30))
+                                                    .foregroundColor(.white)
+                                                    .offset(x: streamingManager.isPlaying ? 0 : 2)
+                                            }
+                                        }
+                                    }
+                                    .disabled(streamingManager.isGenerating && !streamingManager.isPlaying)
+                                    .padding(.trailing, 20)
+                                }
+                            }
                         }
                         .padding(.bottom, 40)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -1398,8 +1863,28 @@ struct UserBookReaderView: View {
         }
         .navigationBarHidden(true)
         .statusBar(hidden: !showControls)
+        .sheet(isPresented: $showVoicePicker) {
+            VoicePickerSheet(
+                recordings: recordings,
+                selectedRecording: $selectedRecording,
+                onSelect: { recording in
+                    selectedRecording = recording
+                    showVoicePicker = false
+                    startPlayback()
+                }
+            )
+        }
         .onAppear {
+            // Hide tab bar when reader appears
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let tabBarController = windowScene.windows.first?.rootViewController as? UITabBarController {
+                UIView.animate(withDuration: 0.3) {
+                    tabBarController.tabBar.isHidden = true
+                }
+            }
+            
             generatePages()
+            loadUserRecordings()
             // Hide controls after 3 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 withAnimation(.easeInOut(duration: 0.3)) {
@@ -1407,6 +1892,98 @@ struct UserBookReaderView: View {
                 }
             }
         }
+        .onDisappear {
+            // Show tab bar when reader disappears
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let tabBarController = windowScene.windows.first?.rootViewController as? UITabBarController {
+                UIView.animate(withDuration: 0.3) {
+                    tabBarController.tabBar.isHidden = false
+                }
+            }
+            stopAudioPlayback()
+        }
+    }
+    
+    // MARK: - Audio Playback Functions
+    
+    private func loadUserRecordings() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let db = Firestore.firestore()
+        db.collection("voiceRecordings")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                guard let documents = snapshot?.documents else { return }
+                
+                let fetchedRecordings = documents.compactMap { doc -> VoiceRecording? in
+                    let data = doc.data()
+                    guard let name = data["name"] as? String,
+                          let voiceId = data["voiceId"] as? String,
+                          let userId = data["userId"] as? String,
+                          let timestamp = data["createdAt"] as? Timestamp else {
+                        return nil
+                    }
+                    
+                    return VoiceRecording(
+                        id: doc.documentID,
+                        name: name,
+                        voiceId: voiceId,
+                        createdAt: timestamp.dateValue(),
+                        userId: userId
+                    )
+                }
+                
+                DispatchQueue.main.async {
+                    self.recordings = fetchedRecordings.sorted { $0.createdAt > $1.createdAt }
+                    // Auto-select first recording if available
+                    if self.selectedRecording == nil, let first = self.recordings.first {
+                        self.selectedRecording = first
+                    }
+                }
+            }
+    }
+    
+    private func handlePlayButtonTap() {
+        if streamingManager.isPlaying {
+            // Pause playback
+            streamingManager.pause()
+        } else if streamingManager.isGenerating {
+            // If generating but not playing, resume playback
+            streamingManager.resume()
+        } else {
+            // Start new playback
+            if selectedRecording == nil {
+                // Show voice picker if no voice selected
+                if !recordings.isEmpty {
+                    showVoicePicker = true
+                }
+            } else {
+                startPlayback()
+            }
+        }
+    }
+    
+    private func startPlayback() {
+        guard let recording = selectedRecording else { return }
+        
+        // Get text content
+        let textContent = getTextContent()
+        
+        // Start streaming audio generation and playback
+        Task { @MainActor in
+            streamingManager.startStreaming(text: textContent, voiceId: recording.voiceId)
+        }
+    }
+    
+    private func stopAudioPlayback() {
+        streamingManager.stop()
+    }
+    
+    private func getTextContent() -> String {
+        guard let content = book.content else {
+            return "No content available."
+        }
+        return content
     }
     
     private func generatePages() {
@@ -1607,14 +2184,31 @@ struct ShelfBookDetailsWrapper: View {
                     return
                 }
                 
-                // Stream the book (don't force download)
-                let streamingService = StreamingEPUBService.shared
+                // Check if book is downloaded for offline reading
+                let isDownloaded = cloudService.isBookDownloaded(bookId: cloudBook.id)
+                print("   - Book download status: \(isDownloaded ? "Downloaded" : "Not Downloaded")")
+                
+                // Load the book content
                 let epubContent: EPUBContent
                 do {
-                    epubContent = try await streamingService.loadBookForStreaming(metadata: cloudBook)
+                    if isDownloaded {
+                        // Load from local storage
+                        print("   - Loading from local storage (offline-ready)")
+                        epubContent = try await cloudService.loadBook(metadata: cloudBook)
+                    } else {
+                        // Stream the book (requires internet connection)
+                        print("   - Streaming from cloud (internet required)")
+                        let streamingService = StreamingEPUBService.shared
+                        epubContent = try await streamingService.loadBookForStreaming(metadata: cloudBook)
+                    }
                 } catch {
                     await MainActor.run {
-                        errorMessage = "Failed to load book: \(error.localizedDescription)"
+                        // Provide more helpful error message based on download status
+                        if !isDownloaded {
+                            errorMessage = "This book is not downloaded for offline reading. Please connect to the internet to stream it, or download it first."
+                        } else {
+                            errorMessage = "Failed to load book: \(error.localizedDescription)"
+                        }
                         isLoading = false
                     }
                     return
@@ -1676,4 +2270,6 @@ struct ShelfBookDetailsWrapper: View {
 #Preview {
     ShelfView()
 }
+
+
 

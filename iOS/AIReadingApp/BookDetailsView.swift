@@ -27,6 +27,7 @@ struct BookDetailsView: View {
     @StateObject private var historyManager = ReadingHistoryManager()
     @StateObject private var streamingService = StreamingEPUBService.shared
     @StateObject private var cloudService = CloudBookService.shared
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     
     // Computed properties for cloud books
     var isCloudBook: Bool {
@@ -41,6 +42,19 @@ struct BookDetailsView: View {
     var isInStreamingCache: Bool {
         guard let metadata = cloudMetadata else { return false }
         return streamingService.isBookInStreamingCache(bookId: metadata.id)
+    }
+    
+    // Check if book can be read offline
+    var canReadOffline: Bool {
+        // User-uploaded books can always be read
+        if !isCloudBook { return true }
+        // Cloud books need to be downloaded
+        return isDownloadedLocally
+    }
+    
+    // Check if user needs internet to read this book
+    var requiresInternetToRead: Bool {
+        isCloudBook && !isDownloadedLocally && !networkMonitor.isConnected
     }
     
     init(book: Book, voiceId: String?, cloudMetadata: CloudBookMetadata? = nil) {
@@ -174,7 +188,15 @@ struct BookDetailsView: View {
                         // Action Buttons
                         HStack(spacing: 12) {
                             // Listen Now Button
-                            Button(action: { showVoiceSelector = true }) {
+                            Button(action: { 
+                                if requiresInternetToRead {
+                                    errorMessage = "This book is not downloaded for offline reading. Audio playback requires internet connection or downloaded book."
+                                } else if !networkMonitor.isConnected {
+                                    errorMessage = "Audio playback requires an internet connection. Please connect to the internet or use the text reader for offline reading."
+                                } else {
+                                    showVoiceSelector = true
+                                }
+                            }) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "headphones")
                                         .font(.system(size: 18))
@@ -185,12 +207,19 @@ struct BookDetailsView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
-                                .background(secondaryPink)
+                                .background(!networkMonitor.isConnected ? Color.gray : secondaryPink)
                                 .cornerRadius(12)
+                                .opacity(!networkMonitor.isConnected ? 0.5 : 1.0)
                             }
                             
                             // Read Text Button
-                            Button(action: { showTextReader = true }) {
+                            Button(action: { 
+                                if requiresInternetToRead {
+                                    errorMessage = "This book is not downloaded for offline reading. Please connect to the internet or download the book first."
+                                } else {
+                                    showTextReader = true
+                                }
+                            }) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "book.fill")
                                         .font(.system(size: 18))
@@ -198,18 +227,32 @@ struct BookDetailsView: View {
                                     Text("Read Text")
                                         .font(.system(size: 16, weight: .semibold))
                                 }
-                                .foregroundColor(secondaryPink)
+                                .foregroundColor(requiresInternetToRead ? .gray : secondaryPink)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
                                 .background(Color.white)
                                 .cornerRadius(12)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke(secondaryPink, lineWidth: 2)
+                                        .stroke(requiresInternetToRead ? Color.gray : secondaryPink, lineWidth: 2)
                                 )
+                                .opacity(requiresInternetToRead ? 0.5 : 1.0)
                             }
                         }
                         .padding(.horizontal, 16)
+                        
+                        // Show offline warning if needed
+                        if requiresInternetToRead {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.red)
+                                Text("No internet connection - Download this book to read offline")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.red)
+                            }
+                            .padding(.horizontal, 16)
+                        }
                         
                         // Cloud Book - Save for Offline / Download Status
                         if isCloudBook {
@@ -534,12 +577,8 @@ struct BookDetailsView: View {
                         isFavorited = true
                     }
                     
-                    // Download book permanently if it's a cloud book and not already downloaded
-                    if let metadata = cloudMetadata {
-                        Task {
-                            await downloadShelfBookPermanently(metadata: metadata)
-                        }
-                    }
+                    // NOTE: We no longer automatically download books when favoriting
+                    // Users must explicitly download books they want to read offline
                 }
             }
         }
@@ -554,39 +593,6 @@ struct BookDetailsView: View {
         
         // Fallback: construct expected storage URL
         return "epubs/\(bookId).epub"
-    }
-    
-    /// Download shelf book to permanent storage (background operation)
-    private func downloadShelfBookPermanently(metadata: CloudBookMetadata) async {
-        print("📥 BookDetails: Downloading shelf book permanently: \(metadata.title)")
-        
-        // Check if already downloaded
-        if cloudService.isBookDownloaded(bookId: metadata.id) {
-            print("✅ BookDetails: Book already permanently downloaded")
-            return
-        }
-        
-        // Check if book is in streaming cache - move it to permanent storage
-        if let streamingURL = streamingService.getStreamingBookURL(bookId: metadata.id) {
-            print("📦 BookDetails: Moving book from streaming cache to permanent storage")
-            do {
-                try await streamingService.saveForOffline(metadata: metadata)
-                print("✅ BookDetails: Book moved to permanent storage")
-            } catch {
-                print("⚠️ BookDetails: Failed to move from streaming cache: \(error)")
-                // Continue to try downloading
-            }
-        }
-        
-        // Download to permanent storage if not already there
-        if !cloudService.isBookDownloaded(bookId: metadata.id) {
-            do {
-                _ = try await cloudService.downloadBook(metadata: metadata)
-                print("✅ BookDetails: Book downloaded to permanent storage")
-            } catch {
-                print("⚠️ BookDetails: Failed to download book permanently: \(error)")
-            }
-        }
     }
 }
 
@@ -1090,45 +1096,48 @@ struct TextReaderView: View {
                                     .padding(.bottom, 4)
                             }
                             
-                            HStack(alignment: .center) {
-                                Spacer()
-                                
-                                // Page indicator (center-left)
-                                Text("\(currentPage + 1) / \(pages.count)")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(textSecondary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.white.opacity(0.9))
-                                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                                    )
-                                
-                                Spacer()
-                            
-                            // Floating Play Button (bottom right)
-                            Button(action: handlePlayButtonTap) {
-                                ZStack {
-                                    Circle()
-                                        .fill(secondaryPink)
-                                        .frame(width: 80, height: 80)
-                                        .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 4)
-                                    
-                                    if streamingManager.isGenerating && !streamingManager.isPlaying {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                            .scaleEffect(1.5)
-                                    } else {
-                                        Image(systemName: streamingManager.isPlaying ? "pause.fill" : "play.fill")
-                                            .font(.system(size: 30))
-                                            .foregroundColor(.white)
-                                            .offset(x: streamingManager.isPlaying ? 0 : 2)
-                                    }
+                            ZStack {
+                                // Centered Page indicator
+                                HStack {
+                                    Spacer()
+                                    Text("\(currentPage + 1) / \(pages.count)")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(textSecondary)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            Capsule()
+                                                .fill(Color.white.opacity(0.9))
+                                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                        )
+                                    Spacer()
                                 }
-                            }
-                            .disabled(streamingManager.isGenerating && !streamingManager.isPlaying)
-                            .padding(.trailing, 20)
+                                
+                                // Floating Play Button (bottom right)
+                                HStack {
+                                    Spacer()
+                                    Button(action: handlePlayButtonTap) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(secondaryPink)
+                                                .frame(width: 80, height: 80)
+                                                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 4)
+                                            
+                                            if streamingManager.isGenerating && !streamingManager.isPlaying {
+                                                ProgressView()
+                                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                    .scaleEffect(1.5)
+                                            } else {
+                                                Image(systemName: streamingManager.isPlaying ? "pause.fill" : "play.fill")
+                                                    .font(.system(size: 30))
+                                                    .foregroundColor(.white)
+                                                    .offset(x: streamingManager.isPlaying ? 0 : 2)
+                                            }
+                                        }
+                                    }
+                                    .disabled(streamingManager.isGenerating && !streamingManager.isPlaying)
+                                    .padding(.trailing, 20)
+                                }
                             }
                         }
                         .padding(.bottom, 40)
@@ -1674,11 +1683,13 @@ struct AudioPlayerView: View {
     
     @Environment(\.dismiss) var dismiss
     @StateObject private var streamingManager = StreamingAudioManager()
+    @StateObject private var membershipManager = MembershipManager()
     @State private var errorMessage: String?
     @State private var timer: Timer?
     @State private var sessionListeningTime: TimeInterval = 0
     @State private var lastPlayTime: Date?
     @StateObject private var statsManager = UserStatsManager()
+    @State private var showUsageLimitAlert = false
     
     // Design tokens
     private let primaryPink = Color(hex: "F9DAD2")
@@ -1830,6 +1841,8 @@ struct AudioPlayerView: View {
             }
         }
         .onAppear {
+            // Set membership manager for usage tracking
+            streamingManager.setMembershipManager(membershipManager)
             generateAndPlayAudio()
         }
         .onDisappear {
@@ -1837,36 +1850,66 @@ struct AudioPlayerView: View {
             stopPlayback()
             saveListeningTime()
         }
+        .alert("Usage Limit Reached", isPresented: $showUsageLimitAlert) {
+            Button("OK") {
+                dismiss()
+            }
+            Button("Upgrade to Premium") {
+                // Navigate to membership view
+                dismiss()
+            }
+        } message: {
+            if let status = membershipManager.membershipStatus {
+                if status.type == .free {
+                    Text("You've used your 30 minutes of free audio for this month. Upgrade to Premium for unlimited listening, or wait until next month when your free time resets.")
+                } else if status.type == .freeTrial {
+                    Text("Your free trial of 30 minutes has expired. Upgrade to Premium for unlimited listening.")
+                }
+            } else {
+                Text("You've reached your listening limit. Please upgrade to continue.")
+            }
+        }
     }
     
     private func generateAndPlayAudio() {
         print("🎵 generateAndPlayAudio() called with streaming")
         
-        // Get text content
-        let rawContent: String
-        if let chapter = selectedChapter {
-            rawContent = chapter.content
-            print("📖 Using chapter content: \(chapter.title)")
-            print("📏 Chapter content length: \(chapter.content.count) characters")
-        } else if !book.chapters.isEmpty {
-            rawContent = book.chapters[0].content
-            print("📖 Using first chapter content")
-            print("📏 Chapter content length: \(book.chapters[0].content.count) characters")
-        } else if let content = book.textContent {
-            rawContent = content
-            print("📖 Using book text content")
-        } else {
-            errorMessage = "No text content available"
-            return
-        }
-        
-        // Remove duplicate chapter title from content
-        let textContent = removeDuplicateChapterTitleInAudio(from: rawContent)
-        
-        print("✅ Final content length: \(textContent.count) characters")
-        
-        // Start streaming audio
+        // Check membership status before playing
         Task { @MainActor in
+            // Load membership status
+            await membershipManager.loadMembershipStatus()
+            
+            // Check if user can use the feature
+            guard membershipManager.canUseFeature() else {
+                print("⚠️ User cannot use audio feature - limit reached")
+                showUsageLimitAlert = true
+                return
+            }
+            
+            // Get text content
+            let rawContent: String
+            if let chapter = selectedChapter {
+                rawContent = chapter.content
+                print("📖 Using chapter content: \(chapter.title)")
+                print("📏 Chapter content length: \(chapter.content.count) characters")
+            } else if !book.chapters.isEmpty {
+                rawContent = book.chapters[0].content
+                print("📖 Using first chapter content")
+                print("📏 Chapter content length: \(book.chapters[0].content.count) characters")
+            } else if let content = book.textContent {
+                rawContent = content
+                print("📖 Using book text content")
+            } else {
+                errorMessage = "No text content available"
+                return
+            }
+            
+            // Remove duplicate chapter title from content
+            let textContent = removeDuplicateChapterTitleInAudio(from: rawContent)
+            
+            print("✅ Final content length: \(textContent.count) characters")
+            
+            // Start streaming audio
             streamingManager.startStreaming(text: textContent, voiceId: recording.voiceId)
             lastPlayTime = Date()
             startTimer()
@@ -2305,4 +2348,5 @@ struct BookCoverImage: View {
             )
     }
 }
+
 

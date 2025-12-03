@@ -19,26 +19,15 @@ struct SignUpView: View {
                 VStack(spacing: 24) {
                     // Avatar and Header
                     VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: "F5B5A8"))
-                                .frame(width: 100, height: 100)
-                            
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 80, height: 80)
-                                .foregroundColor(.white)
-                        }
-                        .padding(.top, 40)
+                        Image("LoginIcon")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 100, height: 100)
+                            .padding(.top, 40)
                         
                         Text("Create Account")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(Color(hex: "1F2937"))
-                        
-                        Text("Sign up to start your reading journey")
-                            .font(.system(size: 16))
-                            .foregroundColor(Color(hex: "6B7280"))
                     }
                     .padding(.bottom, 20)
                     
@@ -238,6 +227,12 @@ struct SignUpView: View {
             do {
                 try await authManager.signUp(email: email, password: password, name: name)
                 await MainActor.run {
+                    isLoading = false
+                    // Clear form on success
+                    name = ""
+                    email = ""
+                    password = ""
+                    confirmPassword = ""
                     dismiss()
                 }
             } catch {

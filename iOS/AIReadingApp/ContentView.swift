@@ -1,40 +1,65 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var authManager: AuthenticationManager
     @State private var recordedVoiceId: String? = nil
-    @State private var selectedTab = 2 // Record tab is active
+    @State private var selectedTab: Int
+    
+    init() {
+        // Check if this is a returning user
+        let isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
+        
+        if isFirstLaunch {
+            // New user: default to Record tab
+            _selectedTab = State(initialValue: 2)
+        } else {
+            // Returning user: default to Read tab
+            _selectedTab = State(initialValue: 0)
+        }
+        
+        // Mark that the app has been launched
+        UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+    }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Main Content
-            if selectedTab == 2 {
-                // Record Tab
-                VoiceRecorderView(onVoiceRecorded: { voiceId in
-                    recordedVoiceId = voiceId
-                })
-            } else if selectedTab == 0 {
-                // Read Tab
-                BookReaderView(voiceId: recordedVoiceId)
-            } else if selectedTab == 1 {
-                // Shelf Tab
-                ShelfView()
-            } else if selectedTab == 3 {
-                // Me Tab
-                MeView()
+        Group {
+            if authManager.isAuthenticated {
+                // Main App Content
+                VStack(spacing: 0) {
+                    // Main Content
+                    if selectedTab == 2 {
+                        // Record Tab
+                        VoiceRecorderView(onVoiceRecorded: { voiceId in
+                            recordedVoiceId = voiceId
+                        })
+                    } else if selectedTab == 0 {
+                        // Read Tab
+                        BookReaderView(voiceId: recordedVoiceId)
+                    } else if selectedTab == 1 {
+                        // Shelf Tab
+                        ShelfView()
+                    } else if selectedTab == 3 {
+                        // Me Tab
+                        MeView()
+                    }
+                    
+                    // Bottom Navigation
+                    BottomNavigationView(selectedTab: $selectedTab)
+                    
+                    // Home Indicator
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color(hex: "0F172A"))
+                        .frame(width: 128, height: 4)
+                        .padding(.bottom, 4)
+                }
+                .background(Color.white)
+                .statusBar(hidden: true)
+                .ignoresSafeArea(.all, edges: [.top, .bottom])
+            } else {
+                // Sign In View
+                SignInView()
             }
-            
-            // Bottom Navigation
-            BottomNavigationView(selectedTab: $selectedTab)
-            
-            // Home Indicator
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color(hex: "0F172A"))
-                .frame(width: 128, height: 4)
-                .padding(.bottom, 4)
         }
-        .background(Color.white)
-        .statusBar(hidden: true)
-        .ignoresSafeArea(.all, edges: [.top, .bottom])
     }
 }
 

@@ -55,7 +55,7 @@ struct MyRecordingsView: View {
                 Spacer()
                 
                 Text("My Recordings")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundColor(textPrimary)
                 
                 Spacer()
@@ -67,7 +67,7 @@ struct MyRecordingsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .padding(.top, 44)
+            .padding(.top, 22)
             .background(Color.white)
             
             // Divider
@@ -266,6 +266,10 @@ struct MyRecordingsView: View {
                     self.errorMessage = "Failed to delete recording: \(error.localizedDescription)"
                 } else {
                     print("✅ Recording deleted successfully")
+                    
+                    // Delete cached audio file as well
+                    AudioCacheManager.shared.deleteCachedAudio(for: recording.voiceId)
+                    
                     // Remove from local array
                     self.recordings.removeAll { $0.id == recording.id }
                 }
@@ -296,53 +300,42 @@ struct MyRecordingsView: View {
     private func playStoryWithVoice(_ recording: VoiceRecording) {
         print("🎵 Starting playback with voice: \(recording.name) (ID: \(recording.voiceId))")
         
-        // Check if user is authenticated
-        guard let currentUser = Auth.auth().currentUser else {
-            print("❌ User is not authenticated!")
-            errorMessage = "You must be signed in to play voice recordings. Please sign out and sign in again."
-            return
-        }
-        
-        print("✅ User is authenticated: \(currentUser.uid)")
-        
         // Stop any current playback
         stopPlayback()
         
         playingVoiceId = recording.voiceId
         isGeneratingAudio = true
         
-        // Snow White story text
-        let storyText = """
-Once upon a time, in a faraway kingdom, there lived a beautiful princess named Snow White. Her skin was as white as snow, her lips as red as roses, and her hair as black as ebony.
-
-One day, her wicked stepmother, the Queen, became jealous of Snow White's beauty. The Queen ordered a huntsman to take Snow White into the forest. But the huntsman couldn't bring himself to harm the innocent princess, so he let her go free.
-
-Snow White wandered through the forest until she found a small cottage. Inside, she discovered seven little beds, seven little chairs, and seven little everything. The cottage belonged to seven dwarfs who worked in a nearby mine.
-
-When the dwarfs returned home, they found Snow White sleeping in their beds. They welcomed her and asked her to stay with them. Snow White was happy to have found a new home.
-
-But the Queen discovered that Snow White was still alive. She disguised herself as an old peddler woman and visited the cottage with a poisoned apple. When Snow White took a bite, she fell into a deep sleep.
-
-The dwarfs were heartbroken. They placed Snow White in a glass coffin and kept watch over her. One day, a handsome prince came by and saw the beautiful princess. He fell in love with her and kissed her. Snow White awoke, and the spell was broken.
-
-The prince and Snow White were married, and they lived happily ever after. The wicked Queen was never seen again, and peace returned to the kingdom.
-"""
-        
         Task {
             do {
-                print("🎤 Generating speech with voice: \(recording.name)...")
-                // Generate speech using ElevenLabs with the selected voice
-                let audioData = try await ElevenLabsService.shared.textToSpeech(
-                    voiceId: recording.voiceId,
-                    text: storyText
-                )
-                
-                print("✅ Speech generated successfully (\(audioData.count) bytes)")
-                
-                // Save to temporary file
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("snow_white_\(recording.voiceId).mp3")
-                try audioData.write(to: tempURL)
-                print("💾 Audio saved to: \(tempURL)")
+                // Try to use cached audio first (much faster and no API cost!)
+                let audioURL: URL
+                if AudioCacheManager.shared.hasCachedAudio(for: recording.voiceId) {
+                    print("✅ Using cached audio - instant playback!")
+                    audioURL = AudioCacheManager.shared.cacheFileURL(for: recording.voiceId)
+                    
+                    // Set generating to false immediately since we're using cache
+                    await MainActor.run {
+                        isGeneratingAudio = false
+                    }
+                } else {
+                    print("⚠️ No cache found, generating new audio (this will use ElevenLabs API)...")
+                    
+                    // Check if user is authenticated before making API call
+                    guard Auth.auth().currentUser != nil else {
+                        print("❌ User is not authenticated!")
+                        throw NSError(domain: "Authentication", code: 401, userInfo: [
+                            NSLocalizedDescriptionKey: "You must be signed in to play voice recordings. Please sign out and sign in again."
+                        ])
+                    }
+                    
+                    // Generate and cache if not already cached
+                    audioURL = try await AudioCacheManager.shared.generateAndCacheSample(for: recording.voiceId)
+                    
+                    await MainActor.run {
+                        isGeneratingAudio = false
+                    }
+                }
                 
                 await MainActor.run {
                     do {
@@ -355,7 +348,7 @@ The prince and Snow White were married, and they lived happily ever after. The w
                         
                         // Create and play audio
                         print("🎵 Creating audio player...")
-                        let player = try AVAudioPlayer(contentsOf: tempURL)
+                        let player = try AVAudioPlayer(contentsOf: audioURL)
                         player.prepareToPlay()
                         
                         // Create delegate and store it to prevent deallocation
@@ -373,29 +366,23 @@ The prince and Snow White were married, and they lived happily ever after. The w
                         print("▶️ Starting playback...")
                         let success = player.play()
                         print(success ? "✅ Playback started successfully" : "❌ Failed to start playback")
-                        
-                        isGeneratingAudio = false
                     } catch {
                         print("❌ Failed to play audio: \(error.localizedDescription)")
                         errorMessage = "Failed to play audio: \(error.localizedDescription)"
-                        isGeneratingAudio = false
                         playingVoiceId = nil
                     }
                 }
             } catch {
-                print("❌ Failed to generate speech: \(error.localizedDescription)")
+                print("❌ Failed to load audio: \(error.localizedDescription)")
                 print("❌ Full error details: \(error)")
                 
-                // Check if user is authenticated
-                if Auth.auth().currentUser == nil {
-                    print("❌ User is not authenticated!")
-                }
-                
                 await MainActor.run {
-                    var displayError = "Failed to generate speech: \(error.localizedDescription)"
+                    var displayError = "Failed to load audio: \(error.localizedDescription)"
                     
                     // More user-friendly error messages
-                    if (error as NSError).localizedDescription.contains("authentication") ||
+                    if (error as NSError).domain == "Authentication" {
+                        displayError = error.localizedDescription
+                    } else if (error as NSError).localizedDescription.contains("authentication") ||
                        (error as NSError).localizedDescription.contains("unauthorized") {
                         displayError = "Authentication error. Please sign out and sign in again."
                     } else if (error as NSError).localizedDescription.contains("network") {
@@ -456,7 +443,7 @@ struct RecordingCard: View {
                         .foregroundColor(textPrimary)
                     
                     if isPlaying {
-                        Text("Playing Snow White...")
+                        Text("Playing sample...")
                             .font(.system(size: 13))
                             .foregroundColor(secondaryPink)
                     } else if isGenerating {

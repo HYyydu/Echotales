@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import AuthenticationServices
 
 struct SignInView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -17,26 +18,15 @@ struct SignInView: View {
                 VStack(spacing: 24) {
                     // Avatar and Welcome Section
                     VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: "F5B5A8"))
-                                .frame(width: 100, height: 100)
-                            
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 80, height: 80)
-                                .foregroundColor(.white)
-                        }
-                        .padding(.top, 40)
+                        Image("LoginIcon")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120, height: 120)
+                            .padding(.top, 40)
                         
-                        Text("Welcome Back")
+                        Text("Welcome")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(Color(hex: "1F2937"))
-                        
-                        Text("Sign in to continue recording")
-                            .font(.system(size: 16))
-                            .foregroundColor(Color(hex: "6B7280"))
                     }
                     .padding(.bottom, 20)
                     
@@ -163,7 +153,7 @@ struct SignInView: View {
                     VStack(spacing: 12) {
                         // Google Sign In
                         Button(action: signInWithGoogle) {
-                            HStack {
+                            HStack(spacing: 8) {
                                 Image(systemName: "g.circle.fill")
                                     .font(.system(size: 20))
                                     .foregroundColor(.red)
@@ -182,13 +172,13 @@ struct SignInView: View {
                         }
                         .disabled(isLoading)
                         
-                        // Apple Sign In
+                        // Apple Sign In - Custom Button
                         Button(action: signInWithApple) {
-                            HStack {
+                            HStack(spacing: 8) {
                                 Image(systemName: "apple.logo")
                                     .font(.system(size: 20))
                                     .foregroundColor(.black)
-                                Text("Continue with Apple")
+                                Text("Sign in with Apple")
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(Color(hex: "1F2937"))
                             }
@@ -239,6 +229,12 @@ struct SignInView: View {
         Task {
             do {
                 try await authManager.signIn(email: email, password: password)
+                await MainActor.run {
+                    isLoading = false
+                    // Clear form on success
+                    email = ""
+                    password = ""
+                }
             } catch {
                 await MainActor.run {
                     errorMessage = error.localizedDescription
@@ -255,6 +251,9 @@ struct SignInView: View {
         Task {
             do {
                 try await authManager.signInWithGoogle()
+                await MainActor.run {
+                    isLoading = false
+                }
             } catch {
                 await MainActor.run {
                     errorMessage = "Google sign-in failed: \(error.localizedDescription)"
@@ -271,8 +270,17 @@ struct SignInView: View {
         Task {
             do {
                 try await authManager.signInWithApple()
+                await MainActor.run {
+                    isLoading = false
+                }
             } catch {
                 await MainActor.run {
+                    // Don't show error if user cancelled
+                    if let authError = error as? ASAuthorizationError,
+                       authError.code == .canceled {
+                        isLoading = false
+                        return
+                    }
                     errorMessage = "Apple sign-in failed: \(error.localizedDescription)"
                     isLoading = false
                 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import GoogleSignIn
 
 
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -8,6 +9,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     FirebaseApp.configure()
 
     return true
+  }
+  
+  // Handle Google Sign-In URL callback
+  func application(_ app: UIApplication,
+                   open url: URL,
+                   options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+    return GIDSignIn.sharedInstance.handle(url)
   }
 }
 
@@ -21,6 +29,9 @@ struct AIReadingApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(authManager)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }

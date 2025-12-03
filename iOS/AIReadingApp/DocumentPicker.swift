@@ -11,7 +11,7 @@ struct DocumentPicker: UIViewControllerRepresentable {
         let supportedTypes: [UTType] = [
             .pdf,           // PDF files
             .plainText,     // TXT files
-            .rtf,           // RTF files
+            .epub,          // EPUB files
             .data           // For DOC/DOCX (as fallback)
         ]
         

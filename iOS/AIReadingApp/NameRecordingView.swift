@@ -194,12 +194,21 @@ struct NameRecordingView: View {
         
         Task {
             do {
+                print("🔄 Step 1: Uploading to ElevenLabs...")
                 // Upload to ElevenLabs and get voice ID
                 let voiceId = try await ElevenLabsService.shared.createVoiceClone(
                     audioURL: audioURL,
                     name: trimmedName
                 )
+                print("✅ Step 1 complete: Voice ID = \(voiceId)")
                 
+                print("🔄 Step 2: Generating and caching sample audio...")
+                // Generate and cache the sample audio immediately
+                // This saves API calls later when users want to preview their voice
+                _ = try await AudioCacheManager.shared.generateAndCacheSample(for: voiceId)
+                print("✅ Step 2 complete: Sample audio cached")
+                
+                print("🔄 Step 3: Saving to Firestore...")
                 // Save to Firestore
                 let db = Firestore.firestore()
                 let recordingData: [String: Any] = [
@@ -210,6 +219,7 @@ struct NameRecordingView: View {
                 ]
                 
                 try await db.collection("voiceRecordings").addDocument(data: recordingData)
+                print("✅ Step 3 complete: Saved to Firestore")
                 
                 await MainActor.run {
                     onSave(voiceId)
